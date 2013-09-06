@@ -1,0 +1,524 @@
+%\VignetteIndexEntry{Running qusage}
+\documentclass[12pt]{article}
+
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\textwidth=6.2in
+\textheight=8.5in
+\oddsidemargin=0.2in
+\evensidemargin=0.2in
+\headheight=0in
+\headsep=0in
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\title{qusage Package Vignette}
+\author{Christopher Bolen}
+\date{1 September 2013}
+\maketitle
+\tableofcontents
+\clearpage
+
+\section{Introduction}
+This package is an implementation the Quantitative Set Analysis for Gene Expression (qusage) method described in Yaari et al. (Nucleic Acids Res, 2013). This is a novel Gene Set Enrichment-type test, which is designed to provide a faster, more accurate, and easier to understand test for gene expression studies. The package is designed primarily for use with microarray expression data, but can be extended for use with count data as well.
+
+qusage accounts for inter-gene correlations using a Variance Inflation Factor technique that extends the method proposed by Wu et al. (Nucleic Acids Res, 2012). In addition, rather than simply evaluating the deviation from a null hypothesis with a single number (a P value), qusage quantifies gene set activity with a complete probability density function (PDF). From this PDF, P values and confidence intervals can be easily extracted. Preserving the PDF also allows for post-hoc analysis (e.g., pair-wise comparisons of gene set activity) while maintaining statistical traceability. Finally, while qusage is compatible with individual gene statistics from existing methods (e.g., LIMMA), a Welch-based method is implemented that is shown to improve specificity. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Getting Started}
+The qusage package can be downloaded from the Bioconductor website using the "biocLite()" command. This will download and install the qusage package along with any package dependenies not already installed. 
+
+\clearpage
+\section{A Simple Example}
+\label{sec:simple}
+<<setup,echo=FALSE>>=  %% Load in data and source files.
+options(width=70)
+options(SweaveHooks=list(fig=function()
+             par(mar=c(5.1, 4.1, 1.1, 2.1))))
+
+library(qusage)
+data("fluExample")
+data("GeneSets")
+@
+The simplest way to run the qusage algorithm is by using the \texttt{qusage} function. This function is a wrapper for the three primary algorithms used in the package, \texttt{makeComparison} \texttt{aggregateGeneSet}, and \texttt{calcVIF}, each of which can be run individually if you want to have greater control over the parameters used in the algorithm. A discussion of each function can be found in section~\ref{sec:algorithm}.
+
+With default settings, \texttt{qusage} takes four inputs: \texttt{eset}, \texttt{labels}, \texttt{contrast}, \& \texttt{\mbox{geneSets}}
+\begin{enumerate}
+\item \texttt{eset}
+
+This variable can be provided in two formats: either as an objet of class \texttt{ExpressionSet} containing log-normalized expression data (as created by the affy and lumi packages), or as matrix of $log_2$ gene expression measurements, with rows of genes and columns of samples. For best results, we recommend that this dataset be trimmed to remove genes with very low expression.
+
+For this example, we'll use part of a dataset from a study by Huang Y et al. (GEO ID: GSE30550), which looks at gene expression in 17 patients before and 77 hours after exposure to the influenza virus. This dataset has already been trimmed to remove genes with very low expression. Here is what the first few rows of our expression data look like:
+<<exprSimple>>=
+dim(eset)
+eset[1:5,1:5]
+@
+
+
+\item \textbf{\texttt{labels}}
+  
+This is a character vector which contains labels describing the group structure in eset. The vector must have one entry for each column in the eset, and the labels must be legal variable names in R, meaning they can't contain spaces and must start with a letter. Often data will consist of two groups, described using "mock" and "treatment", or "healthy" and "disease". For our example data, we have 17 patients, each with a time point before and after viral exposure, which we will call "t0" and "t1". We generate the labels as follows:
+<<labelsSimple>>=
+labels = c(rep("t0",17),rep("t1",17))
+labels
+@
+  
+\item \textbf{\texttt{contrast}} 
+
+The contrast is a single character string indicating how you want to compare the groups in your data. In almost all cases, this will be of the form \texttt{"treatment-mock"}, which will test whether our gene sets are significantly different in treatment vs mock samples. We could also switch the order of the two groups, i.e. \texttt{"mock-treatment"}, which would result in negative fold changes for pathways that are higher in \texttt{treatment}. In our example, the contrast of interest is simply:
+<<contrastSimple>>=
+contrast = "t1-t0"
+@
+
+\item \textbf{\texttt{geneSets}}
+  
+This is either a vector describing a single gene set, or a list of vectors representing a group of gene sets (such as the ones available from Broad's Molecular Signatures Database). In this first example, we will use a single list of IFN-stimulated genes, which looks like this:
+<<geneSetSimple>>=
+ISG.geneSet[1:10]
+@
+Notice that both this vector and the rownames of our \texttt{eset} are using gene symbols. We could have just as easily used the original Affymetrix probe IDs or even converted everything to REFSEQ IDs. The only requirement is that the rownames of \texttt{eset} match the symbols used in \texttt{geneSets}. If they are in a different format, you will receive an error stating that all of your gene sets are of size 0.
+\end{enumerate}
+With these four parameters, we can run \texttt{qusage} as follows:
+\begin{footnotesize}
+<<qsSimple>>=
+qs.results = qusage(eset, labels, contrast, ISG.geneSet)
+@
+\end{footnotesize}
+The \texttt{qusage} method will return a QSarray object containing statistical data on both the distributions of individual genes and on the pathway itself (for a full description of the data in the QSarray object, refer to section~\ref{sec:QSarrayObj}). While the results of this can be analyzed however you choose, there are a variety of functions available in the qusage package for exploring these results.
+
+To find out if our \texttt{geneSet} is significantly enriched for this comparison, we use the \texttt{pdf.pVal} function, which calculates a p-value asking whether the convoluted distribution of our gene set is significantly enriched (i.e. that the mean fold change of the gene set is different from 0). 
+<<pValSimple>>=
+pdf.pVal(qs.results)
+@
+
+In order to view the probability density function, you can either use the \texttt{plotDensityCurves} function, or directly call \texttt{plot} on your QSarray object. In this case, \texttt{plot} will automatically call \texttt{plotDensityCurves} with default parameters. This will appear as follows:
+<<plotCodeSimple,include=FALSE>>=
+plot(qs.results, xlab="Gene Set Activation")
+@
+\begin{center}
+<<plotSimple,fig=TRUE,echo=FALSE,width=6,height=5>>=
+<<plotCodeSimple>>
+@
+%\caption{Probability Density Curve for average fold change in $t1-t0$. Dotted line at 0 fold change represents point where $t1=t0$}
+\label{fig:simplePDF}
+\end{center}
+
+The \texttt{plotDensityCurves} function also invisibly returns the x- and y- coordinates of the PDFs being plotted in the form of a list of matrices, which can be used to generate custom plots for the PDFs. For more information on custom plots, refer to section~\ref{sec:plotFns}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Multiple Gene Sets}
+\label{sec:geneSetDB}
+Most often, qusage is not going to be run with a single gene set. Instead, it is most useful when run on a group of gene sets as a tool for hypothesis discovery.
+
+To demonstrate this, we will use MsigDB's KEGG database (which can be downloaded at \url{www.broadinstitute.org/gsea/msigdb}). The database has been loaded into R and stored as a list of character vectors in the \texttt{MSIG.geneSets} object. With this object, we run \texttt{qusage} exactly as before.
+
+<<MSIG.geneSets>>=  
+  summary(MSIG.geneSets[1:5])
+  MSIG.geneSets[2]
+
+  qs.results.msig = qusage(eset, labels, contrast, MSIG.geneSets)
+  numPathways(qs.results.msig)
+@
+
+The \texttt{qs.results.msig} object now contains information for each of the gene sets in \texttt{MSIG.geneSets}. Once again, we can get the p-values for the comparison by using the \texttt{pdf.pVal} function. However, because we have calculated such a large number of p-values, it's generally not valid to look at them without performing some kind of multiple hypothesis testing. Below, we calculate the p-values and use R's built-in \texttt{p.adjust} method to calculate the FDR values.
+
+<<multiHypCorr>>=
+  p.vals = pdf.pVal(qs.results.msig)
+  head(p.vals)
+  q.vals = p.adjust(p.vals, method="fdr")
+  head(q.vals)
+@
+
+All of this data is also presented using the \texttt{qsTable} function, which returns a table ordered according to the significance of each gene set. For our data, the results are as follows:
+<<echo=FALSE>>=
+  options(width=100)
+@
+<<qsTable>>=
+  qsTable(qs.results.msig, number=10)
+@
+<<echo=FALSE>>=
+  options(width=70)
+@
+
+We can also try plotting the data again using a call to \texttt{plot(qs.results.msig)}.
+<<plotCIs,fig=TRUE,include=FALSE,echo=FALSE,width=11,height=6>>=
+par(mar=c(10,4,1,2))
+plot(qs.results.msig)
+@
+\begin{center}
+\includegraphics[width=1.1\textwidth]{qusage-plotCIs.pdf}
+%\caption{Means and $95\%$ confidence intervals for the pathways in MSIG.geneSets}
+\label{fig:CIsPlot}
+\end{center}
+
+However, this time the qusage package creates a different kind of plot. This is because, by default, when the QSarray object contains data on more than ten pathways, \texttt{plot} will automatically use the function \texttt{plotCIs}. This function calculates the 95\% confidence interval for each gene set using the \texttt{calcBayesCI} function and plots it along with the mean fold change of each gene set. This is usually a more useful view when there are a large number of gene sets, but a plot of the PDFs can still be generated using a call to \texttt{plotDensityCurves}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Paired Samples}
+\label{sec:pair}
+In some cases, samples in a gene expression experiment may be paired with each other. For example, we may have pairs of samples from the same patient both before and after treatment. Because there may be patient-specific effects in the gene expression data, we want to use this information when we calculate pathway activation. In qusage, all we have to do to indicate paired samples is supply a \texttt{pairVector} containing information on which samples should be paired together. The vector should be the same length as \texttt{eset}, and it can be either a numeric vector or a set of factors which uniquely describe each pair. A simpler way to think about the pair vector is to consider it as a vector of patient IDs for each column in eset.
+
+Although for simplicity we have been ignoring it thus far, our gene expression data is actually a paired dataset as well. We have a set of 17 patients with two samples each (t0 and t1). For our \texttt{pairVector}, we will use the numbers 1:17 to represent our patients, as follows:
+<<pairVector>>=
+  pairs = c(1:17,1:17)
+  pairs
+@
+Then, we can simply run the \texttt{qusage} function in a paired manner by adding the argument \texttt{pairVector=pairs} (note: we don't actually show this here, but you can see it in action in the next section).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Two-Way Comparisons}
+The true power of the qusage method comes when you have results from more than one run of \texttt{qusage} that you wish to compare. If a dataset contains more than two groups, it's common to compare these groups in many different ways, and the ablility to compare the results of these comparisons with each other is extremely useful. These two-way comparisons are important when examining differences in the response characteristics of various groups (e.g. to answer the question of "does group A respond to treatment in a different way than group B?"). 
+
+To illustrate how to make these comparisons, we will once again be using the Influenza response data. Although in the previous examples we have grouped all patients together, the patients can be classified into two distinct groups based on their response to the virus. Of the 17 patients in the study, 9 of them had a symptomatic response, and 8 had an asymptomatic response. While we could compare these two groups of patients directly at the two time points, it might be more interesting to see if the response to virus over the time-course of the experiment is different between these two groups.
+
+Before we can compare these groups, however, we will need to remake the \texttt{labels} in order to describe the new groups in our data. For this example, we have the response information stored in a variable called \texttt{resp}, which is just a vector with either "sx" (for symptomatic patients) or "asx" (for asymptomatic patients):
+<<twoWayLabels>>=
+  resp
+  twoWay.labels = paste(resp, labels, sep=".")
+  twoWay.labels
+@
+Now, we must run \texttt{qusage} twice; once for each comparison that we are interested in (note: we're also including information on the sample pairs, which was described in section~\ref{sec:pair}).
+<<twoWayRun, include=FALSE>>=
+  sx.results = qusage(eset, twoWay.labels, "sx.t1-sx.t0", MSIG.geneSets, pairVector=pairs)
+  asx.results = qusage(eset, twoWay.labels, "asx.t1-asx.t0", MSIG.geneSets, pairVector=pairs)
+@
+We could examine the information contained in these two runs using the functions described above, but what we are most interested in is whether or not there is a significant difference between the responses of these two groups. We can directly compare the results in these two groups using the \texttt{twoCurve.pVal} function. This will return a p-value for the comparison of each gene set in the two objects.
+<<twoCurvePval>>=
+  p.vals = twoCurve.pVal(sx.results,asx.results)
+  head(p.vals)
+@
+It turns out that gene set 125 -- the \verb@"CYTOSOLIC DNA SENSING"@ pathway -- has the most significant difference in activation. There are multiple ways we could examine this individual gene set, but perhaps the simplest way is to again use the \texttt{plotDensityCurves} function. Notice here that we are specifying which pathway to plot using the \texttt{path.index} parameter. 
+<<twoWayDensityCurvesCode, include=FALSE>>=
+  plotDensityCurves(asx.results,path.index=125,col="black",xlim=c(-0.2,0.5),main="CYTOSOLIC DNA SENSING")
+  plotDensityCurves(sx.results,path.index=125,col="red",add=T)
+  abline(v=0, lty=2)
+  legend("topleft", legend=c("asx","sx"),lty=1,col=1:2)
+@
+\begin{center}
+<<twoWayDensityCurves, fig=TRUE,echo=FALSE,height=5>>=
+<<twoWayDensityCurvesCode>>
+@
+%\caption{Comparison of PDFs for symptomatic (red) and asymptomatic (black) patients.}
+\end{center}
+
+The results here are pretty interesting, actually. What we're seeing is that, in symptomatic patients, the Cytosolic DNA Sensing pathway is extremely active, while the asymptomatic patients essentially have no activity at all. 
+
+%%%%%%%%%%%% Gene Distribution
+\subsubsection{Individual Gene Plots}
+\label{sec:genePlot}
+Often the next question when an interesting pathway is found is what's happening with the individual genes in that pathway. Looking at the individual genes can give some idea as to how consistent the patterns of regulation in the data are, or whether the significance levels are being driven by only one or two individual genes. Because the gene set PDF in this package is actually a convolution of the PDFs of each individual gene, we can actually look at the distributions of each gene directly to understand where our variation comes from. 
+
+qusage provides two plotting functions which can be used to visualize this data. The first is the \texttt{plotGeneSetDistributions} function, which plots out the PDF for both the pathway and for that pathway's individual genes. The plot, which can be seen below, includes thin colored curves for each gene (color coded according to their standard deviation), as well as a thicker black curve representing the PDF of the entire dataset. Here we plot the results for both the symptomatic patients and the asymptomatic patients side-by-side.
+<<plotGSD,fig=TRUE,include=FALSE,echo=TRUE,width=9,height=6>>=
+plotGeneSetDistributions(sx.results,asx.results,path.index=125)
+@
+\begin{center}
+\includegraphics[width=1.1\textwidth]{qusage-plotGSD.pdf}
+\label{fig:GSDplot}
+\end{center}
+
+Again, we can see that the symptomatic patients have much more activity than the asymptomatic patients, a pattern which seems generally consistent in many of the genes in this pathway. This plot is useful for giving a general idea of how the genes in the pathway act. However, it would also be useful to find out which genes are the most active, and since the \texttt{plotGeneSetDistributions} plot does not provide labels for the individual genes, we must use a separate function: \texttt{plotCIsGenes} to see which genes are most active. This function produces a very similar plot to the \texttt{plotCIs} function, but in this case, it will plot the means and confidence intervals for each individual gene in a pathway. To generate this plot for the CYTOSOLIC DNA SENSING pathway, we will use the following code:
+
+<<plotCIsGenes,fig=TRUE,include=FALSE,echo=FALSE,width=11,height=6>>=
+par(mar=c(8,4,1,2))
+plotCIsGenes(sx.results,path.index=125)
+@
+\begin{center}
+\includegraphics[width=1.1\textwidth]{qusage-plotCIsGenes.pdf}
+%\caption{Means and $95\%$ confidence intervals for the pathways in MSIG.geneSets}
+\label{fig:CIsGenesPlot}
+\end{center}
+
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Chapter 4: The qusage Algorithm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{The qusage Algorithm}
+\label{sec:algorithm}
+The qusage algorithm involves two basic steps: 1) Calculating gene-level comparisons, and 2) Aggregating gene-level data for each gene set. In addition, there is one optional (but highly recommended) step, 3) determining the Variance Inflation Factor (VIF), which corrects for gene-gene correlations in the gene sets. In section~\ref{sec:simple}, we discussed how to use the \texttt{qusage} algorithm to run all three steps together with the default parameters. Below, we discuss each function and their parameters in detail, and look at examples of how to run each function separately.
+
+%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Calculating Gene Level Comparisons}
+\label{sec:makeComparison}
+This section describes the \texttt{makeComparison} function, which is the first step in the qusage algorithm. This function defines the t-distributions for every gene in \texttt{eset} by calculating the fold change and standard deviation between two groups of samples. The function has three required parameters: \texttt{eset}, \texttt{labels}, and \texttt{contrast}, which were described in section~\ref{sec:simple}. A \texttt{pairVector} can also be provided to specify that the comparisons should be done in a paired manner (see section~\ref{sec:pair}). The \texttt{makeComparison} function will return a QSarray object containing information on the means and standard deviations of each gene, which will be used in the subsequent functions to calculate pathway enrichment.
+
+\vspace{5mm}
+\texttt{var.equal}
+
+There are two main algorithms used to calculate a t-distribution from two groups of samples, known as the "Pooled Variance" and "Welch's approximate" approach. In the first method (the pooled variance approach), the variances of the two groups are assumed to be equal, and the difference in the mean expression values is modeled as a Student's t distribution. The second method, proposed by B. L. Welch (Biometrika, 1947), is also based on a Student's t distribution, but relaxes the assumption of equal variances. Most recent gene expression studies take the first approach and assume that the variances of the two groups are equal. For example, this assumption underlies the individual gene statistics in the widely used LIMMA package in Bioconductor.
+
+The pooled variance approach can slightly improve sensitivity (if the equal variance assumption holds), and is easily compatible with linear models and ANOVA. However, this approach can be extremely biased when the assumption of equal variances is broken, which we find is often the case in many real gene expression data sets. By default, the \texttt{makeComparison} function will assume unequal variances, but this behavior can be changed by specifying the parameter \texttt{var.equal = TRUE}. If \texttt{var.equal} is set to \texttt{TRUE}, the t-distribution is actually calculated using the linear model approach implemented by LIMMA. This may be appealing in some cases, because using LIMMA's linear model framework makes more complicated contrasts possible, while also making it possible to use LIMMA's framework for the Bayesian estimation of gene variances, as described below. 
+
+\vspace{5mm}
+\texttt{bayesEstimation}
+
+If \texttt{var.equal} is set to \texttt{TRUE} and LIMMA is used to calculate the t-distributions, we can use some of the additional features of LIMMA when calculating the parameters for each gene. The \texttt{bayesEstimation} parameter is used by LIMMA to optionally apply a bayesian step in the estimation of the pooled variances of each gene. This bayesian step is designed to shrink the variances of the genes on the chip towards a common value. In some cases, this may help to give slightly more stable values for the variances, especially in cases where there are very few samples. The Bayesian step also prevents any genes from having a variance of 0, which would otherwise lead to divergence of the t-distribution. For complete details of how the bayesian estimation step works, refer to the documentation of the LIMMA package.
+
+\vspace{5mm}
+\texttt{min.variance.factor}
+
+If \texttt{var.equal} is set to \texttt{FALSE}, the \texttt{min.variance.factor} can be used as an alternative to the Bayesian estimation step described above. The min.variance.factor is designed to add a very small value to the variance of each gene on the chip in order to prevent any variances from being set to 0. The default, which is set to $10^-8$, is small enough that it will not impact the variance of expressed genes, but will prevent the t-distribution from diverging on genes with variance 0.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Aggregating gene-level data into gene set PDFs}
+\label{sec:calcPDF}
+The second step of the \texttt{qusage} algorithm is the aggregation step, which convolutes individual gene t-distributions into a single PDF for each gene set. This step is performed by the \texttt{aggregateGeneSet} function. The function has two required parameters: a \texttt{QSarray} object such as the one returned by \texttt{makeComparison} (see section~\ref{sec:makeComparison}), and a list of \texttt{geneSets}. As mentioned in section~\ref{sec:simple}, the geneSets parameter can either be a character vector containing a single gene set, or a list of character vectors representing multiple different gene sets. 
+
+This function also contains an option to change the number of points that the convoluted PDF is sampled over. By default the parameter \texttt{n.points} is set to $2^{12}$, or 4096 points, which will give very accurate p-values in most cases. Sampling at more points will increase the accuracy of the resulting p-values, but will also linearly increase the amount of time needed to calculate the result. In many cases, as few as $1/4$ this number of points can be used without seriously affecting the accuracy of the resulting p-values.
+
+The PDF for each individual gene set is generated by using numerical convolution applied to the individual gene PDFs. Briefly, a Fast Fourier Transform (FFT) is calculated for each individual gene PDF to arrive at a k-component vector. The product of each component across all of the genes is then taken to arrive at a new k-component vector for the gene set. The real part of the resulting product is then transformed back to a PDF using a reverse FFT, and assured to be normalized and centered around zero. The mean of the combined PDF is simply the mean fold change of the individual genes. The range for sampling is determined by the lowest degrees of freedom of the individual genes, such that at most $10^{-8}$ of the cumulative distribution at the tails are excluded (i.e., assumed to be $0$). For example, when $\nu = 3$, the range is $(-480,480)$, and when $\nu = 120$, the range is $(-6,6)$. 
+
+Technically, the output of this step is the PDF of the \textit{sum} of differences in expressions over all genes in the gene set under the assumption that the genes are independent. In order to estimate the \textit{mean} differential expression PDF, this distribution is scaled by a factor of $1/N$, where $N$ is the number of genes in the gene set. The resulting PDFs of the input gene sets are stored as a matrix in \texttt{path.PDF} slot of the returned QSarray object. However, the x-coordinates for these PDFs are not stored in the QSarray object, and must be calculated using the \texttt{getXcoords} function.
+
+\subsection{The Variance Inflation Factor}
+\label{sec:calcVIF}
+The expression measurements of individual genes in a set are almost always correlated. As such, it is important to take these correlations into account when testing for gene set enrichment. In qusage, we build off of a technique proposed by Wu et al. (Nucleic Acids Res, 2012), which calculates a Variance Inflation Factor (VIF) for each gene set based on the correlation of the genes in that set. This method, referred to as CAMERA, uses the linear model framework created by LIMMA to calculate gene-gene correlations, but consequently it must assume equal variance not only between all groups in the dataset, but also across each gene in the gene set. While this assumption leads to a slightly more computationally efficient VIF calculation, it is not valid for most gene sets, and its violation can greatly impact specificity. In the qusage paper (*ref*), we show that this assumption of equal variances leads to over-estimation of the VIF, and consequently an overall loss of power. 
+
+Although our recommendation is to use the qusage algorithm for calculating the VIF, the \texttt{calcVIF} function includes the option to use either the CAMERA method (as implemented in the \texttt{limma} package in R) or the qusage method. If the parameter \texttt{useCAMERA=TRUE} is specified when running \texttt{calcVIF}, the CAMERA method will be used when calculating the VIF for each gene set. By default, this will only be used if \texttt{var.equal} was set to \texttt{TRUE} during the original call to \texttt{makeComparison}. 
+
+\vspace{5mm}
+\texttt{useAllData}
+
+The \texttt{calcVIF} algorithm contains an additional parameter, \texttt{useAllData}, which specifies whether all of the groups in \texttt{eset} should be used when calculating the VIF using the qusage algorithm, or if only the two groups used in the original comparison should be used. By default (\texttt{useAllData=TRUE}), all of the data will be used to calculate the VIF. In most cases, using more data will increase the accuracy of the VIF calculation, especially in cases where individual groups are very small. However, it may not always be valid to include all of the data when calculating gene-gene correlations (e.g. if the data set contains expression values from more than one species), so it may be useful to limit what groups are used in the VIF calculation. Note that this parameter is only used if \texttt{useCAMERA} is \texttt{FALSE}, as the CAMERA algorithm automatically uses all data in the eset provided.
+
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Chapter 5:  Plotting Functions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Plotting Functions}
+\label{sec:plotFns}
+
+The \texttt{qusage} package contains a number of functions designed to easily and intuitively visualize the results stored in a QSarray object. Many of these functions were demonstrated in section~\ref{sec:simple}, but in the following sections we will highlight the variety of options available when plotting the diverse data generated when running the qusage algorithm.
+
+\subsection{plotDensityCurves}
+\label{sec:plotDensityCurves}
+The \texttt{plotDensityCurves} function is the simplest way to plot the data in a \texttt{QSarray} object. By default, this function generates a very simple plot containing probability density curves for each of the gene sets included in the qusage run. The density (y-axis) data for each PDF is stored in the \texttt{path.pdf} slot of the \texttt{QSarray} object, and the x-coordinates for the PDF are calculated on the fly using the \texttt{getXcoords} function (see below for details on this method). 
+
+We've seen PDF plots before in section~\ref{sec:simple}, but a slightly more customized version of the plot with multiple PDFs can be seen below:
+
+<<prettyPDF,include=FALSE>>=
+##select the best 5 gene sets
+p.vals = pdf.pVal(qs.results.msig)
+topSets = order(p.vals)[1:5]
+
+##plot 
+plotDensityCurves(qs.results.msig, path.index=topSets, col=1:5, 
+                  lwd=2, xlab=expression(log[2](Activity)))
+@
+\begin{center}
+<<plotPDF,fig=TRUE,echo=FALSE,width=5,height=3.6>>=
+<<prettyPDF>>
+@
+\end{center}
+
+Because this function is simply an extension of the basic \texttt{plot} function, these plots can be heavily customized. This customization can be accomplished both through the basic plotting parameters, such as \texttt{xlab, ylab, main}, and the parameters passed on to \texttt{par}, and via some parameters which are specific to \texttt{plotDensityCurves}. The function-specific parameters are listed below.
+
+\begin{itemize}
+\item \textbf{\texttt{path.index}}
+This parameter controls which PDFs are plotted and the order that they are plotted in. It can be specified as either a numeric vector or a vector of names matching the gene sets.
+
+\item \textbf{\texttt{zeroLine}}
+By default, a vertical dashed line is added to the plot at 0 in order to give a visual indication of how significant the gene set is. In order to suppress the addition of this line, the parameter \texttt{zeroLine=FALSE} can be specified.
+
+\item \textbf{\texttt{addVIF}}
+Much like the other functions in qusage, this function gives you the option to specify whether the VIF should be used in calculating the PDF. By default, if the VIF has been calculated, it will always be included, but this behavior can be suppressed by explicity specifying \texttt{addVIF=FALSE}. While this will improve how significant your PDFs appear, it is strongly reccommended that the VIF is included whenever possible, as it is the only way to account for gene-gene correlations in a gene set.
+
+\end{itemize}
+
+The \texttt{plotDensityCurves} function is a useful way to visualize the PDF of a gene set, but in some cases it may be necessary to access the x and y coordinates of these PDFs individually. The information required to create these plots is all stored in the QSarray object, but some processing is necessary to get coordinates in the correct format for plotting. Although the y-coordinates can generally be used as-is when taken from the \texttt{path.pdf} matrix, the x-coordinates are not stored in the qusage object. Instead, the \texttt{getXcoords} function calculates x-coordinates for each point n using the following formula:
+
+\begin{align*}
+x_n = (-1+\frac{2(n-1)}{N_{pts}-1}) \times r \times \sqrt{VIF} + \hat{\mu}_{path}
+\end{align*}
+
+where $N_{pts}$ is the total number of points, $r$ is the range used for the numerical convolution (see section~\ref{sec:calcPDF}), $VIF$ is the Variance Inflation Factor, and $\hat{\mu}_{path}$ is the mean fold change of the pathway.
+
+Although the x- and y- coordinates can be extracted by hand from a qusage object, by far the easiest way to access this information is with the \texttt{plotDensityCurves} function itself. As mentioned in section~\ref{sec:simple}, the \texttt{plotDensityCurves} function silently returns the x- and y-coordinates of each PDF being plotted. This data is returned as a list of data frames, with each individual data frame containing the x- and y-coordinates for the PDF of a single gene set. 
+
+An example of how to use this data for a custom plot is shown below. In this case, we will use the results from running qusage on the ISG set, stored in the \texttt{qs.results} object, to generate a Cumulative Distribution Function, or CDF. 
+
+<<createCDF,include=FALSE>>=
+##get coordinates
+coord.list = plotDensityCurves(qs.results, plot=FALSE)
+coords = coord.list[[1]]
+x=coords$x
+##Calculate the CDF as the integral of the PDF at each point.
+y = cumsum(coords$y)/sum(coords$y)
+
+plot(x,y, type="l", xlim=calcBayesCI(qs.results,low=0.001)[,1])
+@
+\begin{center}
+<<plotCDF,fig=TRUE,echo=FALSE,width=5,height=4>>=
+<<createCDF>>
+@
+\label{fig:customCDF}
+\end{center}
+
+\clearpage
+\subsection{plotGeneSetDistributions}
+The \texttt{plotGeneSetDistributions} function is a method designed to visualize the PDFs of each individual gene in a gene set. As seen in section \ref{sec:genePlot}, the resulting plot is a useful and intuitive way to view how individual genes contribute to the overall PDF of the gene set. To generate a default plot, \texttt{plotGeneSetDistributions} can be called as shown below:
+
+<<plotISG_GSD,fig=TRUE,include=FALSE,echo=TRUE,width=8,height=4>>=
+plotGeneSetDistributions(qs.results)
+@
+\begin{center}
+\includegraphics[width=1.1\textwidth]{qusage-plotISG_GSD.pdf}
+\end{center}
+
+The default gene set distribution plot is composed of two parts: a plot of the gene and gene set PDFs, and a barcode plot representing the mean of the individual genes. Both portions of the plot can be customized using the parameters in \texttt{plotGeneSetDistributions} and with the generic parameters that can be passed on to \texttt{plot}.
+
+\vspace{5mm}
+\textbf{PDFs}
+
+The PDF plot is, in essence, an extension of the \texttt{plotDensityCurves} function discussed in section~\ref{sec:plotDensityCurves}. The plot includes the average PDF for the entire gene set, which is calculated in the same way as discussed in section~\ref{sec:plotDensityCurves}, as well as PDFs for each individual gene in the pathway. Because the mean and SD of each gene was calculated using a t-test, the individual gene PDFs are generated as t-distributions with parameters mean, standard deviation, and degrees of freedom defined by the values stored in \texttt{QSarray}.
+
+\texttt{plotGeneSetDistributions} contains a number of parameters which are useful for customizing the PDF plots. These parameters are listed below:
+
+\begin{itemize}
+\item \textbf{\texttt{colorScheme}} This parameter is used to establish a color scheme for the individual gene PDFs. The default color scheme, sdHeat, will automatically color-code the gene PDFs by their standard deviations, with hotter colors being used for smaller standard deviations. In contrast, the "rainbow" color scheme will use a repeating series of colors, so that individual curves can be easily distinguished from their neighbors. Although these two options are the only automatically generated options, the \texttt{colorScheme} parameter can also accept a custom color scheme, which can be provided as a vector of colors. For a single gene set distribution plot, this can be useful for highlighting the PDFs of specific genes of interest. However, it is important to note that the order that the colors are used in is not the same as the order of genes in the original gene set. All gene sets are reordered when they are stored in the \texttt{QSarray\$pathways} slot, and the vector provided to \texttt{colorScheme} will be used in this order.
+
+\item \textbf{\texttt{alpha}} This parameter controls the alpha channel of the individual gene PDFs. It is only used if the "sdHeat" or "rainbow" colorSchemes are used. Making the PDFs slightly transparent can be especially useful when there are a large number of genes, and the individual pdfs have a significant amount of overlap. 
+
+\item \textbf{\texttt{normalizePeaks}} This parameter is used to control the heights of the individual gene PDFs. By default, the PDF heights will be scaled to correctly represent the density of the PDF, but in some cases, keeping the PDFs at a fixed height may make the picture easier to understand. If \texttt{normalizePeaks} is set to \texttt{TRUE}, the height of the individual gene PDFs will be scaled to be exactly the same.
+
+\item \textbf{\texttt{lwds}} This parameter controls the line widths for the PDFs. The first parameter controls the individual gene PDFs, and the second controls the gene set PDFs.
+\end{itemize}
+
+\vspace{5mm}
+\textbf{Barcode Plot}
+
+The barcode plot is a visual way of marking where the peaks of an individual gene PDF (i.e. the mean fold change of the genes) are located. By default, the barcode will be added as a series of vertical black lines directly below the PDF plot. The appearance of this plot can be controlled by three different parameters:
+
+\begin{itemize}
+\item \texttt{addBarcod} 
+
+This boolean parameter controls the plotting of the barcode. If \texttt{addBarcode} is set to \texttt{FALSE}, the barcode will not be added to the plot. 
+
+\item \texttt{barcode.col} 
+
+This parameter controls the color of the vertical bars. This parameter can either be a single color or a vector with individual colors for each gene in the gene set. As with \texttt{colorScheme}, it is important to note that the order of the genes in the gene set is not the same as the input parameters. All gene sets are reordered when they are stored in the \texttt{QSarray\$pathways} slot, and the vector provided to \texttt{colorScheme} will be used in this order.
+
+\item \texttt{barcode.hei}
+
+This parameter controls the height of the barcode plot. This can be specified as a single numeric value representing the height of the bar as a fraction of the height of the main plotting region.
+
+\end{itemize}
+
+\subsubsection{Comparing two gene sets}
+In cases where you want to compare two gene set distribution plots, the \texttt{plotGeneSetDistributions} function can automatically plot the results from a second gene set directly below the first. This can be done in two ways. First, to compare two different gene sets, a vector of length 2 can be provided to \texttt{path.index}, representing the two gene sets to be compared from \texttt{QSarray1}. Second, to compare two different runs of qusage, a second QSarray object can be provided via the \texttt{QSarray2} parameter. In this case, if \texttt{path.index} is of length 1, the single gene set specified will be pulled from both QSarray objects, making it easy to compare the activity of the gene set between runs. If both QSarray objects are provided and \texttt{path.index} is of length 2, then the first gene set will be pulled from QSarray1, and the second from QSarray2. 
+
+\vspace{5mm}
+\subsubsection{Custom Example: Highlighting genes of interest}
+
+As an example of customizing the density curves plot, we will once again look at the activity of the \verb@"CYTOSOLIC DNA SENSING"@ pathway in our dataset. Perhaps the gene we are most interested in is CXCL10, and we would like to see how this specific gene compares to the others in the gene set. In order to do this, we will highlight the PDF for CXCL10 in red, and plot the rest of the gene PDFs in grey.
+
+<<plotGSDHighlight,fig=TRUE,include=FALSE,echo=TRUE,width=9,height=6>>=
+path = 125 ##the CYTOSOLIC_DNA_SENSING pathway
+path.gene.i = sx.results$pathways[[path]] ##the genes are stored as indexes
+path.genes = rownames(eset)[path.gene.i]
+
+cols = rep("#33333399",length(path.genes))
+##make the IFNA genes red, and the IFNB genes blue.
+cols[path.genes=="CXCL10"] = "#FF0000"
+
+plotGeneSetDistributions(sx.results,asx.results,path.index=125, 
+                         groupLabel=c("Symptomatic","Asymptomatic"),
+                         colorScheme=cols, barcode.col=cols)
+@
+\begin{center}
+\includegraphics[width=1.1\textwidth]{qusage-plotGSDHighlight.pdf}
+\end{center}
+
+\clearpage
+\subsection{plotCIs}
+As an alternative to plotting the entire PDF of a pathway, the qusage package also provides a function, \texttt{plotCIs}, which is designed to plot just the mean and $95\%$ confidence interval of a pathway. An example of this function was seen in section~\ref{sec:geneSetDB}, and the resulting plot is re-created below.
+
+\begin{center}
+\includegraphics[width=1.1\textwidth]{qusage-plotCIs.pdf}
+%\caption{Means and $95\%$ confidence intervals for the pathways in MSIG.geneSets}
+\label{fig:CIsPlotRepeat}
+\end{center}
+
+The default CI plot displays the mean fold change and $95\%$ confidence interval of all the pathways contained in a \texttt{QSarray} object. The confidence intervals for each pathway are calculated using the \texttt{calcBayesCI} function, and the amount of overlap with the zero line can be used to estimate the significance of the gene set. In addition, each point is color coded by significance using the p-values calculated with \texttt{pdf.pVal}, and both the p-values and the CIs are corrected for multiple hypothesis testing using the methods defined in \texttt{p.adjust}. This plot can also be heavily customized using any of the additional parameters listed below.
+
+\begin{itemize}
+\item \textbf{\texttt{path.index}}
+This parameter controls which PDFs are plotted and the order that they are plotted in. It can be specified as either a numeric vector or a vector of names matching the gene sets. By default, the order of these pathways does not matter, but if \texttt{sort.by} is set to \texttt{"none"}, the pathways will be plotted in the order provided.
+
+\item \textbf{\texttt{sort.by}}
+This parameter accepts a string (either \texttt{"mean"}, \texttt{"p"}, or \texttt{"none"}) indicating how the pathways should be ordered. If \texttt{sort.by="mean"} or \texttt{"p"}, the pathways will be ordered by their means and p-values, respectively. Else, if \texttt{sort.by="none"}, the pathways will not be rearranged at all, and the order provided in path.index will be retained. The last option is most useful when plotting the results of two qusage runs in one plot, when it is necessary to ensure both plots have the same order.
+
+\item \textbf{\texttt{lowerBound, upperBound}}
+These parameters are passed on to \texttt{calcBayesCI} for use in calculating the confidence interval. The default, \texttt{lowerBound=0.025, upperBound=0.975}, represents a two-sided $95\%$ confidence interval.
+
+\item \textbf{\texttt{use.p.colors}}
+This parameter controls the coloring of the error bars for the plot. By default (\texttt{use.p.colors=TRUE}), the bars will automatically be colored different shades of red and green based on the significance of their respective p-values (e.g. a p-value of 0.05 would result in a dark red bar, and a p-value of 0.0001 would result in a bright red bar).
+
+\item \textbf{\texttt{col}}
+This is a vector of colors which can be provided to define the color of the points. If \texttt{use.p.colors=FALSE} is specified, these colors will also be used for the error bars.
+
+\item \textbf{\texttt{p.breaks}}
+This is a numeric vector indicating where the breaks in the p-value color scheme should be placed. By default, breaks will be at 0.001, 0.005, 0.01, 0.05, \& 0.1, meaning that a p-value between 0.05 and 0.1 will be a darker color than a p-value between 0.01 and 0.05. If you just wanted all significant p-values to be colored the same, you would simply set \texttt{p.breaks=0.05}
+
+\item \textbf{\texttt{p.adjust.method}}
+The method to use to adjust the p-values. Must be one of the methods in \texttt{p.adjust.methods}.
+
+\item \textbf{\texttt{addLegend}}
+This is a logical parameter specifying if a legend for the p-value color scheme be plotted. If true, the values from p.breaks will be plotted alongside their respective colors in the top right hand corner.
+
+\item \textbf{\texttt{lowerColorBar}}
+Options for plotting a color bar below each point. Automatically generated color bars have not yet been implemented, but custom bars can be created using the "lowerColorBar.cols" parameter.
+
+\item \textbf{\texttt{lowerColorBar.cols}}
+This is a vector of colors to plot as a bar along the bottom of the plot. This can be useful if there's other information you wish to include in the plot, such as a p-value for a second comparison, or a visual representation of another test statistic from a different program.
+
+\item \textbf{\texttt{addGrid}}
+This boolean parameter controls the addition of dashed lines behind the plot which help to follow a point down to its x-axis label.
+
+\item \textbf{\texttt{x.labels}}
+This is a character vector of the same length as \texttt{path.index} giving the names of the pathways. By default, \texttt{plotCIs} will use the names stored in \texttt{QSarray}.
+
+\item \textbf{\texttt{cex.xaxis}}
+This parameter controls the character expansion of the x-axis separate from the overall \texttt{cex}. The value supplied will be multiplied by the current plot's \texttt{cex} to determine the size of the x-axis text
+
+\item \textbf{\texttt{shift}}
+This is a number between 0 and 1 decribing the amount to shift points with respects to the guiding lines and axis labels. This is primarily used when \texttt{add=TRUE} and you do not want the two plots to directly overlap.
+
+\end{itemize}
+
+
+\clearpage
+\section{The QSarray object}
+\label{sec:QSarrayObj}
+The QSarray object is designed to hold the results of the various functions and algorithms that make up the qusage package. Exactly what information is contained in a QSarray object is dependent upon which functions have been used to create the object. A new QSarray object can also be created by calling the \texttt{QSarray()} function. A list of all possible fields and their descriptions are included below.
+\begin{itemize}
+\item \textbf{\texttt{mean, SD, dof}} - Vectors containing the means, standard deviations, and degrees of freedom for each gene as output by \texttt{makeComparison} (see section~\ref{sec:makeComparison}). Together they describe the t-distribution of each gene in the dataset.
+
+\item \textbf{\texttt{path.PDF}} - This is a matrix which contains the density values for the PDF of each gene set provided to \texttt{aggregateGeneSet}. The number of rows of \texttt{path.PDF} is determined by the \texttt{n.points} parameter, which by default is 4096.
+
+\item \textbf{\texttt{path.mean}} - A numeric vector containing the mean fold change of each gene set provided to \texttt{aggregateGeneSet}. 
+
+\item \textbf{\texttt{ranges}} - The (uncorrected) range that each PDF was calculated over. If the VIF is not used to correct the range, the x-coordinates of the PDF are the sequence of n.points from \texttt{path.mean-ranges} to \texttt{path.mean+ranges}
+
+\item \textbf{\texttt{path.size}} - A vector containing the number of features in each pathway that mapped to the input data.
+
+\item \textbf{\texttt{vif}} - A vector containing the Variance Inflation Factor for each pathway, as calculated by calcVIF. 
+
+\item \textbf{\texttt{pathways}} - A version of the input \texttt{geneSets}, represented as a list of numeric vectors which map to the rows of \texttt{eset} which contain features in that gene set.
+
+\item \textbf{\texttt{labels, contrast, pairVector, var.method, n.points}} - Copies of the input parameters which are used in future calculations.
+
+\item \texttt{design} - A design matrix for the linear model fitting in LIMMA. Only created if limma is used in \texttt{makeComparison} (see section~\ref{sec:makeComparison})
+
+\item \textbf{\texttt{absolute.p}}
+
+\item \textbf{\texttt{homogeneity}}
+
+
+\end{itemize}
+\end{document}
