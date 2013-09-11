@@ -27,7 +27,12 @@ qusage accounts for inter-gene correlations using a Variance Inflation Factor te
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Getting Started}
-The qusage package can be downloaded from the Bioconductor website using the "biocLite()" command. This will download and install the qusage package along with any package dependenies not already installed. 
+The qusage package can be downloaded from the Bioconductor website using the following commands:
+
+\texttt{
+source("http://bioconductor.org/biocLite.R")
+biocLite("qusage")
+}
 
 \clearpage
 \section{A Simple Example}
@@ -221,7 +226,7 @@ plotGeneSetDistributions(sx.results,asx.results,path.index=125)
 
 Again, we can see that the symptomatic patients have much more activity than the asymptomatic patients, a pattern which seems generally consistent in many of the genes in this pathway. This plot is useful for giving a general idea of how the genes in the pathway act. However, it would also be useful to find out which genes are the most active, and since the \texttt{plotGeneSetDistributions} plot does not provide labels for the individual genes, we must use a separate function: \texttt{plotCIsGenes} to see which genes are most active. This function produces a very similar plot to the \texttt{plotCIs} function, but in this case, it will plot the means and confidence intervals for each individual gene in a pathway. To generate this plot for the CYTOSOLIC DNA SENSING pathway, we will use the following code:
 
-<<plotCIsGenes,fig=TRUE,include=FALSE,echo=FALSE,width=11,height=6>>=
+<<plotCIsGenes,fig=TRUE,include=FALSE,echo=TRUE,width=11,height=6>>=
 par(mar=c(8,4,1,2))
 plotCIsGenes(sx.results,path.index=125)
 @
@@ -230,6 +235,8 @@ plotCIsGenes(sx.results,path.index=125)
 %\caption{Means and $95\%$ confidence intervals for the pathways in MSIG.geneSets}
 \label{fig:CIsGenesPlot}
 \end{center}
+
+
 
 \clearpage
 
@@ -276,7 +283,7 @@ Technically, the output of this step is the PDF of the \textit{sum} of differenc
 
 \subsection{The Variance Inflation Factor}
 \label{sec:calcVIF}
-The expression measurements of individual genes in a set are almost always correlated. As such, it is important to take these correlations into account when testing for gene set enrichment. In qusage, we build off of a technique proposed by Wu et al. (Nucleic Acids Res, 2012), which calculates a Variance Inflation Factor (VIF) for each gene set based on the correlation of the genes in that set. This method, referred to as CAMERA, uses the linear model framework created by LIMMA to calculate gene-gene correlations, but consequently it must assume equal variance not only between all groups in the dataset, but also across each gene in the gene set. While this assumption leads to a slightly more computationally efficient VIF calculation, it is not valid for most gene sets, and its violation can greatly impact specificity. In the qusage paper (*ref*), we show that this assumption of equal variances leads to over-estimation of the VIF, and consequently an overall loss of power. 
+The expression measurements of individual genes in a set are almost always correlated. As such, it is important to take these correlations into account when testing for gene set enrichment. In qusage, we build off of a technique proposed by Wu et al. (Nucleic Acids Res, 2012), which calculates a Variance Inflation Factor (VIF) for each gene set based on the correlation of the genes in that set. This method, referred to as CAMERA, uses the linear model framework created by LIMMA to calculate gene-gene correlations, but consequently it must assume equal variance not only between all groups in the dataset, but also across each gene in the gene set. While this assumption leads to a slightly more computationally efficient VIF calculation, it is not valid for most gene sets, and its violation can greatly impact specificity. In the qusage paper (Yaari et al., NAR, 2013), we show that this assumption of equal variances leads to over-estimation of the VIF, and consequently an overall loss of power. 
 
 Although our recommendation is to use the qusage algorithm for calculating the VIF, the \texttt{calcVIF} function includes the option to use either the CAMERA method (as implemented in the \texttt{limma} package in R) or the qusage method. If the parameter \texttt{useCAMERA=TRUE} is specified when running \texttt{calcVIF}, the CAMERA method will be used when calculating the VIF for each gene set. By default, this will only be used if \texttt{var.equal} was set to \texttt{TRUE} during the original call to \texttt{makeComparison}. 
 
@@ -316,7 +323,9 @@ plotDensityCurves(qs.results.msig, path.index=topSets, col=1:5,
 @
 \end{center}
 
-Because this function is simply an extension of the basic \texttt{plot} function, these plots can be heavily customized. This customization can be accomplished both through the basic plotting parameters, such as \texttt{xlab, ylab, main}, and the parameters passed on to \texttt{par}, and via some parameters which are specific to \texttt{plotDensityCurves}. The function-specific parameters are listed below.
+Because this function is simply an extension of the basic \texttt{plot} function, these plots can be heavily customized. This customization can be accomplished both through the basic plotting parameters, such as \texttt{xlab, ylab, main} and the parameters passed on to \texttt{par}, and via some parameters which are specific to \texttt{plotDensityCurves}. The \texttt{add} parameter can also be specified to overlay a second plot over an existing one.
+
+The function-specific parameters are listed below.
 
 \begin{itemize}
 \item \textbf{\texttt{path.index}}
@@ -488,6 +497,9 @@ This parameter controls the character expansion of the x-axis separate from the 
 
 \item \textbf{\texttt{shift}}
 This is a number between 0 and 1 decribing the amount to shift points with respects to the guiding lines and axis labels. This is primarily used when \texttt{add=TRUE} and you do not want the two plots to directly overlap.
+
+\item \textbf{\texttt{add}}
+This boolean parameter is used to overlay a second plot over one that was previously generated. If \texttt{add=TRUE}, the bar plots will be added on to the existing plotting region.
 
 \end{itemize}
 

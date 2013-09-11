@@ -556,7 +556,7 @@ plotCIsGenes <- function(QSarray, ##an object of class QSarray.
                          x.labels=NULL, ##The labels for the individual genes By default, names(QSarray$mean[gene.names]) or ORDER if not empty
                          cex.xaxis=1, ## set cex parameter manually for x axis label
                          shift=0.0,  ## shift of the x axis: shifts points and arrows (CI's) with respects to the guiding lines and axis labels. Useful when add=TRUE   
-                         pathwayCI=c("none","band","bar"), ##A string, one of "none", "band", or "bar", determining whether to add the confidence interval for the gene set PDF to the plot. If "band", a band will be plotted behind the bars for the individual genes. If "bar" is specificied, another error bar will be added before the genes' error bars.
+                         pathwayCI=c("band","bar","none"), ##A string, one of "band", "bar", or "none", determining whether to add the confidence interval for the gene set PDF to the plot. If "band", a band will be plotted behind the bars for the individual genes. If "bar" is specificied, another error bar will be added before the genes' error bars.
                          meanCol=4, ## color for the line that indicates the mean of the pathway
                          
                          add=FALSE,    ##boolean parameter. If FALSE, a new plot is created. If TRUE, axes are not plotted

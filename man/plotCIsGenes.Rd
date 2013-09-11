@@ -18,7 +18,7 @@ plotCIsGenes(QSarray,
              x.labels=NULL, 
              cex.xaxis=1,
              shift=0.0,
-             pathwayCI=c("none","band","bar"),
+             pathwayCI=c("band","bar","none"),
              meanCol=4,
                    
              add=FALSE,
@@ -41,7 +41,7 @@ plotCIsGenes(QSarray,
     \item{x.labels}{character vector indicating the names of the genes to be plotted along the x-axis. By default, will use the names stored in QSarray, or \code{gene.list}, if specified.}
     \item{cex.xaxis}{set cex parameter seperately for x axis label}
     \item{shift}{a number between 0 and 1 decribing the amount to shift points with respects to the guiding lines and axis labels. Useful when add=TRUE}
-    \item{pathwayCI}{A string, one of "none", "band", or "bar", determining whether to add the confidence interval for the gene set PDF to the plot. If "band", a band will be plotted behind the bars for the individual genes. If "bar" is specificied, another error bar will be added before the genes' error bars.}
+    \item{pathwayCI}{A string, one of "band", "bar", or "none", determining whether to add the confidence interval for the gene set PDF to the plot. By default ("band"), a band will be plotted behind the bars for the individual genes. If "bar" is specificied, another error bar will be added before the genes' error bars. To suppress the plotting of the pathway band, specify \code{pathwayCI="none"}.}
     \item{meanCol}{color for the line indicating the mean of the pathway. Only used if \code{pathwayCI} is either \code{'band'} or \code{'bar'}}
     \item{add}{logical indicating whether a new plot should be created. If \code{FALSE}, a new plot will be generated.}
     \item{xlim, ylim, xlab, ylab, main, sub,\dots}{parameters to be passed on to \code{plot}. If \code{NULL}, defaults will be used.}
@@ -74,8 +74,8 @@ The mean of the overall pathway will automatically be added as a dashed line (wi
 ##Plot gene data from first gene set
    plotCIsGenes(results, path.index=1)
    
-##Add a band to represent the differential expression of the gene set
-   plotCIsGenes(results, path.index=1, pathwayCI="band")
+##Add a bar to represent the differential expression of the gene set
+   plotCIsGenes(results, path.index=1, pathwayCI="bar")
  }
 
 
