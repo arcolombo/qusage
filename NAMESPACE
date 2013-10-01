@@ -19,7 +19,8 @@ export(qusage,
        plotGeneSetDistributions,
        plotDensityCurves,
        plotCIs,
-       plotCIsGenes
+       plotCIsGenes,
+       read.gmt
       )
 
 exportClasses(QSarray)

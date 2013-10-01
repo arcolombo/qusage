@@ -29,10 +29,10 @@ qusage accounts for inter-gene correlations using a Variance Inflation Factor te
 \section{Getting Started}
 The qusage package can be downloaded from the Bioconductor website using the following commands:
 
-\texttt{
+<<install,eval=FALSE>>=
 source("http://bioconductor.org/biocLite.R")
 biocLite("qusage")
-}
+@
 
 \clearpage
 \section{A Simple Example}
@@ -78,7 +78,7 @@ contrast = "t1-t0"
 
 \item \textbf{\texttt{geneSets}}
   
-This is either a vector describing a single gene set, or a list of vectors representing a group of gene sets (such as the ones available from Broad's Molecular Signatures Database). In this first example, we will use a single list of IFN-stimulated genes, which looks like this:
+This is either a vector describing a single gene set, or a list of vectors representing a group of gene sets, such as the ones available from Broad's Molecular Signatures Database. In this first example, we will use a single list of IFN-stimulated genes, which looks like this:
 <<geneSetSimple>>=
 ISG.geneSet[1:10]
 @
@@ -98,7 +98,7 @@ pdf.pVal(qs.results)
 @
 
 In order to view the probability density function, you can either use the \texttt{plotDensityCurves} function, or directly call \texttt{plot} on your QSarray object. In this case, \texttt{plot} will automatically call \texttt{plotDensityCurves} with default parameters. This will appear as follows:
-<<plotCodeSimple,include=FALSE>>=
+<<plotCodeSimple,include=FALSE, eval=FALSE>>=
 plot(qs.results, xlab="Gene Set Activation")
 @
 \begin{center}
@@ -117,8 +117,11 @@ The \texttt{plotDensityCurves} function also invisibly returns the x- and y- coo
 \label{sec:geneSetDB}
 Most often, qusage is not going to be run with a single gene set. Instead, it is most useful when run on a group of gene sets as a tool for hypothesis discovery.
 
-To demonstrate this, we will use MsigDB's KEGG database (which can be downloaded at \url{www.broadinstitute.org/gsea/msigdb}). The database has been loaded into R and stored as a list of character vectors in the \texttt{MSIG.geneSets} object. With this object, we run \texttt{qusage} exactly as before.
+To demonstrate this, we will use MsigDB's KEGG database (which can be downloaded at \url{www.broadinstitute.org/gsea/msigdb}). We can read this file in using the \texttt{read.gmt} function. With the resulting object, we run \texttt{qusage} exactly as before:
 
+<<read.MSIG.geneSets,eval=FALSE>>=
+  MSIG.geneSets = read.gmt("c2.cp.kegg.v4.0.symbols.gmt")
+@
 <<MSIG.geneSets>>=  
   summary(MSIG.geneSets[1:5])
   MSIG.geneSets[2]

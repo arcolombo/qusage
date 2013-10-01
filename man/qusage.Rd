@@ -12,7 +12,7 @@ qusage(eset, labels, contrast, geneSets, pairVector=NULL,
     \item{eset}{An objet of class \link[Biobase]{ExpressionSet} containing log normalized expression data (as created by the affy and lumi packages), OR a matrix of log2(expression values), with rows of features and columns of samples}
     \item{labels}{Vector of labels representing each column of eset}
     \item{contrast}{A string describing which of the groups in 'labels' we want to compare. This is usually of the form 'trt-ctrl', where 'trt' and 'ctrl' are groups represented in 'labels'}
-    \item{geneSets}{A list of pathways to be compared. See Description for more details.}
+    \item{geneSets}{Either a list of pathways to be compared, or a vector of gene names representing a single gene set. See Description for more details.}
     \item{pairVector}{A vector of factors (usually just 1,2,3,etc.) describing the sample pairings. This is often just a vector of patient IDs or something similar. If not provided, all samples are assumed to be independent.}
     \item{var.equal}{A logical variable indicating whether to treat the two variances as being equal. If TRUE then the pooled variance is used to estimate the variance otherwises the Welch approximation is used.}
     \item{filter.genes}{A boolean indicating whether the genes in eset should be filtered to remove genes with low mean and sd.}
@@ -21,7 +21,7 @@ qusage(eset, labels, contrast, geneSets, pairVector=NULL,
  \details{
   This function runs the entire qusage method on the input data, returning a single QSarray object containing the results of the three primary steps in the qusage algorithm: \link{makeComparison}, \link{calcVIF}, and \link{aggregateGeneSet}. Many of the parameters are left out of this function for simplicity, so for greater control each of the functions must be called separately.
   
-  The \var{geneSets} parameter can either be provided as a vector describing a single gene set, or a list of vectors representing a group of gene sets (such as the ones available from Broad's Molecular Signatures Database). Each pathway must be a character vector with entries matching the row names of \var{eset}. If a pathway does not contain any values matching the rownames of \var{eset}, a warning will be printed, and the function will return NAs for the values of that pathway.
+  Gene sets are commonly obtained from online databases such as Broad's Molecular Signatures Database. Gene set lists can be obtained from these sites in the form of .gmt files, which can be read into R using the \code{\link{read.gmt}} function. Once the data has been read into R, the information can be passed into the qusage function as either a vector describing a single gene set, or a list of vectors representing a group of gene sets. Each pathway must be a character vector with entries matching the row names of \var{eset}. If a pathway does not contain any values matching the rownames of \var{eset}, a warning will be printed, and the function will return NAs for the values of that pathway.
   
  }
  
