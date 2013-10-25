@@ -277,7 +277,7 @@ plotDensityCurves <- function(QSarray,       ##a QSarray object, containing the 
                               add=FALSE,  ##Boolean. If false, create a new plotting region to plot the curve to.
                               xlim=NULL,ylim=NULL, ##x- and y-limits of the plotting region.
                               xlab=NULL,ylab=NULL, ##x- and y-labels.
-                              ...){                ##additional parameters to pass to "plot.default"   
+                              type="l",...){                ##additional parameters to pass to "plot.default"   
   
   ##check path.index
   if(is.character(path.index)){
@@ -313,7 +313,7 @@ plotDensityCurves <- function(QSarray,       ##a QSarray object, containing the 
     x = getXcoords(QSarray,path,addVIF=addVIF)
     y = QSarray$path.PDF[,path]/scaleFactor[path]
     if(plot){
-      lines(x, y, col=col[i],...)
+      lines(x, y, col=col[i],type=type,...)
     }
     retVal[[i]] = data.frame(x,y)
   }  

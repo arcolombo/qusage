@@ -560,7 +560,7 @@ getXcoords = function(QSarray,path.index=1, addVIF=!is.null(QSarray$vif)){ #,abs
 ##this is primarily used for plotting of the PDF.
 pdfScaleFactor = function(QSarray, addVIF=!is.null(QSarray$vif)){
   if(is.null(QSarray$vif) && addVIF){stop("vif is undefined for QSarray object. addVIF can not be set to true.")}
-  sif = sapply(QSarray$vif,function(v){ifelse(addVIF,sqrt(v),1)})
+  sif = sapply(1:numPathways(QSarray),function(i){ifelse(addVIF,sqrt(QSarray$vif[i]),1)})
   sif[is.na(sif)] = 1
   pdfSum = colSums(QSarray$path.PDF)
   ##the scale factor is essentially the distance between points in the x coordinates times the sum of the pdf
