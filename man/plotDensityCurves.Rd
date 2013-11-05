@@ -13,7 +13,8 @@ plotDensityCurves(QSarray,
                   plot=TRUE,
                   add=FALSE,
                   xlim=NULL,ylim=NULL,
-                  xlab=NULL,ylab=NULL,  
+                  xlab=NULL,ylab=NULL,
+                  type="l",
                   \dots)
  }
  \arguments{
