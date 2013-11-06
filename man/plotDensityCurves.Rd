@@ -24,7 +24,7 @@ plotDensityCurves(QSarray,
     \item{addVIF}{a logical indicating whether the VIF should be used to calculate the variance of the pathway.}
     \item{col}{the color of the curves. Can be a vector of the same length as path.index specifying the color of each individual curve.}
     \item{plot}{Logical indicating whether to create the plot. If \code{FALSE}, only the coordinates for the plot will be returned, and no new plot will be created.}
-    \item{add, xlim, ylim, xlab, ylab, \dots}{parameters to be passed on to \code{plot}}
+    \item{add, xlim, ylim, xlab, ylab, type, \dots}{parameters to be passed on to \code{plot}}
 
  }
  \details{
