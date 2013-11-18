@@ -410,7 +410,7 @@ plotCIs = function(QSarray,
     p.colorScheme<-c(rgb(0,seq(0,1,length.out=br.ln+1),0),
                      rgb(seq(1,0,length.out=br.ln+1),0,0))
     bar.col = p.colorScheme[findInterval(p.vals,p.breaks.twoSided,rightmost.closed=T)]
-    bar.col[p.vals==0] = c("#00FF00","#FF0000")[(means>0)+1][p.vals==0]
+    bar.col[which(p.vals==0)] = c("#00FF00","#FF0000")[(means>0)+1][which(p.vals==0)]
   }else{
     bar.col=col
   }
