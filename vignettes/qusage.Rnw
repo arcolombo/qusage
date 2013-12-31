@@ -239,8 +239,11 @@ plotCIsGenes(sx.results,path.index=125)
 \label{fig:CIsGenesPlot}
 \end{center}
 
+\subsection{Running qusage with small sample sizes}
+Although qusage does not require as many samples as permutation-based methods, the current implementation requires at least three degrees of freedom. As the variance of a t distribution is $\frac{\nu}{\nu-2}$, this will diverge for $\nu \rightarrow 2$. Hence, in cases where the degrees of freedom falls below three, QuSAGE artificially set the degrees of freedom to be three and issues a warning message that the results should be interpreted with caution. It is imortant to keep in mind that in this case, the p-values will be inflated, and may not accurately reflect the underlying data. 
 
-
+A second problem with small sample sizes is the large range over which the gene set PDF must be sampled. Whereas a t-distribution with 25 degrees of freedom is sampled from $(-10,10)$, a distribution with four degrees of freedom must be sampled from $(-416,416)$. When using the default number of points \texttt{(n.points=4096)}, this can result in inadequate sampling of the distribution and inaccurate estimates of pathway significance. In order to prevent this, you must increase the n.points parameter when running the aggregateGeneSet function (this is done automatically when using the \texttt{qusage} function if the degrees of freedom are below 5). However, note that the run time of aggregateGeneSet increases linearly with the number of points, so increasing this parameter may significantly slow down the algorithm. 
+ 
 \clearpage
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

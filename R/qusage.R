@@ -29,7 +29,9 @@ qusage = function(eset,             ##a matrix of log2(expression values), with 
   }
   
   cat("Done.\nAggregating gene data for gene sets.")
-  results = aggregateGeneSet(results, geneSets, silent=F)
+  nu = min(results$dof,na.rm=T)
+  if(nu<5){cat("\nLow sample size detected. Increasing n.points in aggregateGeneSet.")}
+  results = aggregateGeneSet(results, geneSets, silent=F, n.points=ifelse(nu<5,2^(12+(5-nu)*3),2^12))
   cat("Done.\nCalculating variance inflation factors...")
   results = calcVIF(eset, results)
   #cat("Done.\nCalculating homogeneity scores...")
@@ -153,10 +155,11 @@ makeComparison <- function(eset,       ##a matrix of log2(expression values), wi
       colnames(eset.1) = pairVector[grp.1]
       colnames(eset.2) = pairVector[grp.2]
       
-      if(ncol(eset.1)!=ncol(eset.2)){
+      #if(ncol(eset.1)!=ncol(eset.2)){
         eset.1 = eset.1[,colnames(eset.1) %in% colnames(eset.2)]
         eset.2 = eset.2[,colnames(eset.2) %in% colnames(eset.1)]
-      }
+        eset.1 = eset.1[,match(colnames(eset.2),colnames(eset.1))]
+      #}
     }
     
     results = newQSarray(c(params, calcIndividualExpressions(eset.2,eset.1,paired=paired,min.variance.factor=min.variance.factor)))
@@ -198,7 +201,7 @@ calcIndividualExpressions<-function(Baseline,PostTreatment,paired=FALSE,min.vari
       if(min(Ns)!=ncol(Baseline)){warning("Some NA's in data")}
       Sigmas_Base<-rowSums((Baseline-PostTreatment-(Sums_Base-Sums_Post)/Ns)^2)/(Ns-1)
       DOF<-Ns
-      if(any(DOF<3, na.rm=T)){warning("Some degrees of freedom are below minimum. They have been set to 3.")}
+      if(any(DOF<3, na.rm=T)){warning("Some degrees of freedom are below minimum. They have been set to 3.\nPlease refer to section 3.4 of the vignette for information on running qusage with small sample sizes.")}
       DOF[DOF<3]<-3
       Mean=(Sums_Post-Sums_Base)/Ns
       SD=sqrt(Sigmas_Base/Ns)
