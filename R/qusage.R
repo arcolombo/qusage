@@ -32,7 +32,7 @@ qusage = function(eset,              ##a matrix of log2(expression values), with
   cat("Done.\nAggregating gene data for gene sets.")
   nu = floor(min(results$dof,na.rm=T))
   if(nu<5){cat("\nLow sample size detected. Increasing n.points in aggregateGeneSet.")}
-  results = aggregateGeneSet(results, geneSets, silent=F, n.points=n.points))
+  results = aggregateGeneSet(results, geneSets, silent=F, n.points=n.points)
   cat("Done.\nCalculating variance inflation factors...")
   results = calcVIF(eset, results)
   #cat("Done.\nCalculating homogeneity scores...")
