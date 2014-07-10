@@ -2,7 +2,7 @@
 ##
 ## Author: Christopher Bolen
 ##         Gur Yaari
-## Updated: 2013-03-15
+## Updated: 2014-05-15
 ## (c) 2013 Yale University. All rights reserved.
 
 
@@ -200,7 +200,7 @@ calcIndividualExpressions<-function(Baseline,PostTreatment,paired=FALSE,min.vari
       Sums_Post<-rowSums(PostTreatment, na.rm=na.rm)
       Ns<-rowSums(!is.na(Baseline-PostTreatment), na.rm=na.rm)
       if(min(Ns)!=ncol(Baseline)){warning("Some NA's in data")}
-      Sigmas_Base<-rowSums((Baseline-PostTreatment-(Sums_Base-Sums_Post)/Ns)^2)/(Ns-1)
+      Sigmas_Base<-rowSums((Baseline-PostTreatment-(Sums_Base-Sums_Post)/Ns)^2,na.rm=na.rm)/(Ns-1)
       DOF<-Ns
       if(any(DOF<3, na.rm=T)){warning("Some degrees of freedom are below minimum. They have been set to 3.\nPlease refer to section 3.4 of the vignette for information on running qusage with small sample sizes.")}
       DOF[DOF<3]<-3
@@ -215,8 +215,8 @@ calcIndividualExpressions<-function(Baseline,PostTreatment,paired=FALSE,min.vari
       Ns_Base<-rowSums(!is.na(Baseline), na.rm=na.rm)
       Ns_Post<-rowSums(!is.na(PostTreatment), na.rm=na.rm)
       if(min(Ns_Base)!=ncol(Baseline) | min(Ns_Post)!=ncol(PostTreatment)){warning("Some NA's in data")}
-      Sigmas_Base<-rowSums((Baseline-(Sums_Base)/Ns_Base)^2)/(Ns_Base-1)
-      Sigmas_Post<-rowSums((PostTreatment-(Sums_Post)/Ns_Post)^2)/(Ns_Post-1)
+      Sigmas_Base<-rowSums((Baseline-(Sums_Base)/Ns_Base)^2,na.rm=na.rm)/(Ns_Base-1)
+      Sigmas_Post<-rowSums((PostTreatment-(Sums_Post)/Ns_Post)^2,na.rm=na.rm)/(Ns_Post-1)
       ROWS<-rownames(Baseline)
       DOF<-Ni(Sigmas_Post+min.variance.factor,Sigmas_Base+min.variance.factor,Ns_Post,Ns_Base)
       #calculate degrees of freedom
