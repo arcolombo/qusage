@@ -1,0 +1,27 @@
+import(utils)
+import(Biobase)
+importFrom("graphics", plot)
+
+export(qusage,
+       makeComparison,
+       aggregateGeneSet,
+       calcVIF,
+       oneWay.pVal,
+       pdf.pVal,
+       twoWay.pVal,
+       twoCurve.pVal,
+       getXcoords,
+       calcBayesCI,
+       newQSarray,
+       qsTable,
+       numFeatures,
+       numPathways,
+       plotGeneSetDistributions,
+       plotDensityCurves,
+       plotCIs,
+       plotCIsGenes,
+       read.gmt
+      )
+
+exportClasses(QSarray)
+exportMethods(plot, print, dim, head, summary, "[<-")
