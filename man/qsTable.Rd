@@ -5,12 +5,12 @@
    Print a table with a summary of the information on the most significant gene sets in QSarray.
  }
  \usage{
-qsTable(QSarray, number=20, sort.by=c("fdr","p","logFC","none"))
+qsTable(QSarray, number=20, sort.by=c("fdr","p","logFC"))
  }
  \arguments{
     \item{QSarray}{A QSarray object}
     \item{number}{The number of gene sets to include in the table}
-    \item{sort.by}{the metric to be used to sort the gene sets in QSarray. One of \code{c("fdr","p","logFC","none")}. You can specify just the initial letter. }
+    \item{sort.by}{character vector; a list of metrics to be used to sort the gene sets in QSarray. Can be any combination and order of \code{c("fdr","p","logFC")}, or \code{NULL} to specify no re-ordering of gene sets.}
  }
  \details{
  This method will return a table with a summary of the results of qusage. 
@@ -47,5 +47,5 @@ qsTable(QSarray, number=20, sort.by=c("fdr","p","logFC","none"))
   qsTable(results)
   
 ##show the first 5 sets, sorted by log fold change
-  qsTable(results, number=5, sort.by="l")
+  qsTable(results, number=5, sort.by="logFC")
  }

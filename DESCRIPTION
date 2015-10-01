@@ -1,17 +1,21 @@
 Package: qusage
-Version: 1.9.0
+Version: 2.0.0
 Date: 2013-01-20
 Title: qusage: Quantitative Set Analysis for Gene Expression
 Authors@R: c(person("Christopher Bolen", "Developer", role = c("aut",
         "cre"), email = "cbolen1@gmail.com"), person("Gur Yaari",
         "Developer", role = "aut"), person("Juilee Thakar",
+        "Developer", role = "aut"), person("Hailong Meng", 
+        "Developer", role = "aut"), person("Jacob Turner", 
+        "Developer", role = "aut"), person("Derek Blankenship",
         "Developer", role = "aut"), person("Steven Kleinstein",
         "Developer", role = "aut"))
 Author: Christopher Bolen and Gur Yaari, with contributions from Juilee
-        Thakar and Steven Kleinstein
+        Thakar, Hailong Meng, Jacob Turner, Derek Blankenship, and
+        Steven Kleinstein
 Maintainer: Christopher Bolen <cbolen1@gmail.com>
 Depends: R (>= 2.10), limma (>= 3.14), methods
-Imports: utils, Biobase
+Imports: utils, Biobase, nlme, lsmeans
 Description: This package is an implementation the Quantitative Set
         Analysis for Gene Expression (QuSAGE) method described in
         (Yaari G. et al, Nucl Acids Res, 2013). This is a novel Gene

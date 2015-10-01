@@ -2,7 +2,7 @@
 ##
 ## Author: Christopher Bolen
 ##         Gur Yaari
-## Updated: 2014-05-15
+## Updated: 2015-09-15
 ## (c) 2013 Yale University. All rights reserved.
 
 
@@ -14,7 +14,7 @@
 ## Many of the parameters are left out of this function for simplicity, so for greater control
 ## each of the functions must be called separately.
 
-qusage = function(eset,              ##a matrix of log2(expression values), with rows of features and columns of samples. OR an object of class ExpressionSet 
+qusage = function(eset,       ##a matrix of log2(expression values), with rows of features and columns of samples. OR an object of class ExpressionSet 
                   labels,            ##vector of labels representing each column of eset.
                   contrast,          ##a string describing which of the groups in 'labels' we want to compare. This is usually of the form 'trt-ctrl', where 'trt' and 'ctrl' are groups represented in 'labels'. 
                   geneSets,          ##a list of pathways to be compared. Each item in the list is a vector of names that correspond to the row names of eset.
@@ -22,6 +22,63 @@ qusage = function(eset,              ##a matrix of log2(expression values), with
                   var.equal=FALSE,   ##a logical variable indicating whether to treat the two variances as being equal. If TRUE then the pooled variance is used to estimate the variance otherwise the Welch approximation is used.
                   filter.genes=FALSE,##a boolean indicating whether the genes in eset should be filtered to remove genes with low mean and sd.
                   n.points=2^12      ##The number of points to sample the convolution at. Passed to aggregateGeneSet
+                 ){
+  ##determine the type of comparison (i.e. single, double, or more complex?)
+  
+  ##if double
+  if(grepl("\\s*\\(.+-.+\\)\\s*-\\s*\\(.+-.+\\)\\s*",contrast, perl=TRUE)){
+    
+    ##split into two single comparisons
+    temp = unlist(strsplit(contrast, "\\)\\s*-\\s*\\("))
+    contrast1 = gsub("\\s*\\(","", x=temp[1], perl=TRUE)
+    contrast2 = gsub("\\)\\s*","", x=temp[2], perl=TRUE)
+    ##flip contrast2
+    temp = unlist(strsplit(contrast2, "\\s*\\-\\s*"))
+    contrast2 = paste0(temp[2:1], collapse="-")
+    
+    # run qusage for contrast1 and contrast2, 
+    qs.results.1 = qusage.single(eset, labels, contrast1, geneSets, pairVector, var.equal, filter.genes, n.points)
+    qs.results.2 = qusage.single(eset, labels, contrast2, geneSets, pairVector, var.equal, filter.genes, n.points)
+    
+    # set the number of samples to be equal (i.e. don't weight the combined pdf)
+    n.s = c(qs.results.1$n.samples, qs.results.2$n.samples)
+    qs.results.1$n.samples = qs.results.2$n.samples = 1
+    
+    qs.results.comb = combinePDFs(list(qs.results.1, qs.results.2), n.points=n.points*2)
+    
+    ##double the means and ranges (because we're doing addition, not average)
+    qs.results.comb$path.mean = 2 * qs.results.comb$path.mean
+    qs.results.comb$ranges = 2 * qs.results.comb$ranges
+    
+    ##remove the QSlist (so this object can be considered a normal QSarray)
+    qs.results.comb$QSlist = NULL
+    
+    ##fix the n.samples
+    qs.results.comb$n.samples = mean(n.s)
+    
+    
+    ##add other missing bits to the qs.results
+    qs.results.comb$contrast = contrast
+    for(i in c("var.method","labels","pairVector","pathways","path.size")){
+      if(!is.null(qs.results.1[[i]])){qs.results.comb[[i]] = qs.results.1[[i]]}
+    }
+    
+    return(qs.results.comb)
+    
+  ##else, hopefully limma can handle the contrast definition
+  }else{
+    return(qusage.single(eset, labels, contrast, geneSets, pairVector, var.equal, filter.genes, n.points))
+  }
+  
+}
+qusage.single = function(eset,       ##a matrix of log2(expression values), with rows of features and columns of samples. OR an object of class ExpressionSet 
+                         labels,            ##vector of labels representing each column of eset.
+                         contrast,          ##a string describing which of the groups in 'labels' we want to compare. This is usually of the form 'trt-ctrl', where 'trt' and 'ctrl' are groups represented in 'labels'. 
+                         geneSets,          ##a list of pathways to be compared. Each item in the list is a vector of names that correspond to the row names of eset.
+                         pairVector=NULL,   ##A vector of factors (usually just 1,2,3,etc.) describing the sample pairings. This is often just a vector of patient IDs or something similar. If not provided, all samples are assumed to be independent.
+                         var.equal=FALSE,   ##a logical variable indicating whether to treat the two variances as being equal. If TRUE then the pooled variance is used to estimate the variance otherwise the Welch approximation is used.
+                         filter.genes=FALSE,##a boolean indicating whether the genes in eset should be filtered to remove genes with low mean and sd.
+                         n.points=2^12      ##The number of points to sample the convolution at. Passed to aggregateGeneSet
                  ){
   cat("Calculating gene-by-gene comparisons...")
   results = makeComparison(eset, labels, contrast, pairVector=pairVector,var.equal=var.equal)
@@ -115,6 +172,9 @@ makeComparison <- function(eset,       ##a matrix of log2(expression values), wi
     contrast.matrix <- makeContrasts( contrasts=contrast, levels=design)
     fit2 <- contrasts.fit(fit,contrast.matrix)
     
+    ##calculate number of samples use in the contrast
+    n.samples = sum(labels %in% rownames(contrast.matrix)[contrast.matrix!=0])
+    
     ##if using Bayes estimation, calculate the moderated t-statistics for each comparison
     if(bayesEstimation){
       fit2b <- eBayes(fit2)
@@ -129,13 +189,15 @@ makeComparison <- function(eset,       ##a matrix of log2(expression values), wi
       dof = fit2$df.residual
     }
     
+    
     ##format 
     results = newQSarray(params, 
                       mean = fit2$coefficients[,1],
                       SD = SD,
                       sd.alpha = sd.alpha,
                       dof = dof,
-                      var.method="Pooled"
+                      var.method="Pooled",
+                      n.samples=n.samples
                      )
   }
   if(!var.equal){
@@ -148,6 +210,7 @@ makeComparison <- function(eset,       ##a matrix of log2(expression values), wi
     grp.1 = labels==grps[1]  ##PostTreatment
     grp.2 = labels==grps[2]  ##Baseline
     if(sum(grp.1)==0 | sum(grp.2)==0){stop("Contrast groups do not match labels")}
+    params$n.samples = sum(grp.1) + sum(grp.2)
     
     eset.1 = eset[,grp.1]
     eset.2 = eset[,grp.2]
@@ -462,12 +525,21 @@ pdf.pVal <- function(QSarray,                          ##The output of qusage (o
 ){ 
   if(is.null(QSarray$path.PDF)){stop("convolution results not found.")}
   p = sapply(1:ncol(QSarray$path.PDF), function(i){
-    if(QSarray$path.size[i]==0){return(NA)}
+    if(!is.null(QSarray$path.size) && QSarray$path.size[i]==0){return(NA)}
     
     #calculate null hypothesis
     if(!selfContained){
-      path = QSarray$pathways[[i]]
-      null.hyp = mean(QSarray$mean[-path])
+      if(!is.null(QSarray$QSlist) && is.null(QSarray$mean)){
+        null.hyp = sapply(QSarray$QSlist, function(q){
+          path = q$pathways[[i]]
+          mean(q$mean[-path])
+        })
+        null.hyp = sum(null.hyp * QSarray$n.sample)/sum(QSarray$n.samples)
+      }else{
+        path = QSarray$pathways[[i]]
+        null.hyp = mean(QSarray$mean[-path])
+      }
+      
     }else{
       null.hyp=0
 #       if(!absolute){null.hyp=0}
@@ -485,6 +557,7 @@ pdf.pVal <- function(QSarray,                          ##The output of qusage (o
     sum(PDF_NORM[1:INDEX])+((null.hyp-x[INDEX])/(x[INDEX+1]-x[INDEX]))*PDF_NORM[INDEX+1]
   })
   
+  ##fix p-values based on test side
   dir = match.arg(alternative)
   if(dir=="two.sided"){
     p[which(p>0.5)] = -1+p[which(p>0.5)]   ### turn it into a two-tailed p
@@ -547,16 +620,18 @@ twoCurve.pVal<-function(grp1, grp2,
 getXcoords = function(QSarray,path.index=1, addVIF=!is.null(QSarray$vif)){ #,absolute=FALSE){
   if(length(path.index)>1){stop("path.index must be of length 1")}
   if(is.null(QSarray$vif) && addVIF){stop("vif is undefined for QSarray object. addVIF can not be set to true.")}
+  
   sif = ifelse(addVIF,sqrt(QSarray$vif[path.index]),1)
   if(is.na(sif)){sif=1}
-# if(!absolute){
-   seq(-1,1,length.out=QSarray$n.points)* QSarray$ranges[path.index]* sif + QSarray$path.mean[path.index]
-# }
-#  else {
-#  ###First calculate the new mean of the pathway based on the absolute values of the means
-#  MeanAbs<-mean(abs(QSarray$mean[QSarray$pathways[[path.index]]]))
-#  seq(-1,1,length.out=QSarray$n.points)* QSarray$ranges[path.index]* sif / QSarray$path.size[path.index] + MeanAbs
-#  }
+    
+#   if(!absolute){
+  seq(-1,1,length.out=QSarray$n.points)* QSarray$ranges[path.index]* sif + QSarray$path.mean[path.index]
+#   }
+#    else {
+#    ###First calculate the new mean of the pathway based on the absolute values of the means
+#    MeanAbs<-mean(abs(QSarray$mean[QSarray$pathways[[path.index]]]))
+#    seq(-1,1,length.out=QSarray$n.points)* QSarray$ranges[path.index]* sif / QSarray$path.size[path.index] + MeanAbs
+#   }
 }
 
 
@@ -567,16 +642,21 @@ pdfScaleFactor = function(QSarray, addVIF=!is.null(QSarray$vif)){
   sif = sapply(1:numPathways(QSarray),function(i){ifelse(addVIF,sqrt(QSarray$vif[i]),1)})
   sif[is.na(sif)] = 1
   pdfSum = colSums(QSarray$path.PDF)
-  ##the scale factor is essentially the distance between points in the x coordinates times the sum of the pdf
-  scaleFactor = 2 * (QSarray$ranges*sif) / (QSarray$n.points-1) * pdfSum
+  
+  ##get the pdf range
+  ranges = QSarray$ranges * 2
+  
+  ##the scale factor is essentially the distance between points in the x coordinates times the (current) sum of the pdf
+  scaleFactor = (ranges*sif) / (QSarray$n.points-1) * pdfSum
   scaleFactor
 }
 
 
 ## Computes the 95% CI for a pdf
 calcBayesCI <- function(QSarray,low=0.025,up=1-low,addVIF=!is.null(QSarray$vif)){
-  cis = sapply(1:length(QSarray$path.mean), function(i){
-    if(length(QSarray$pathways[[i]])==0){return(c(NA,NA))}
+  cis = sapply(1:ncol(QSarray$path.PDF), function(i){
+    if( (!is.null(QSarray$pathways) && length(QSarray$pathways[[i]])==0 ) ||
+        any(is.na(QSarray$path.PDF[,i]))){return(c(NA,NA))}
     x = getXcoords(QSarray,i,addVIF=addVIF)
     cdf = cumsum(QSarray$path.PDF[,i])
     cdf = cdf/cdf[length(cdf)]
@@ -587,7 +667,7 @@ calcBayesCI <- function(QSarray,low=0.025,up=1-low,addVIF=!is.null(QSarray$vif))
             ) )
 #     return( c(x[findInterval(low,cdf)-1] , x[findInterval(up,cdf)]) )
   })
-  colnames(cis) = names(QSarray$path.mean)
+  colnames(cis) = colnames(QSarray$path.PDF)
   rownames(cis) = c("low","up")
   return(cis)
 }

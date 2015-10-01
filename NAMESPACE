@@ -1,8 +1,13 @@
 import(utils)
 import(Biobase)
+import(nlme)
+import(lsmeans)
+import(limma)
+import(methods)
 importFrom("graphics", plot)
 
 export(qusage,
+       qgen,
        makeComparison,
        aggregateGeneSet,
        calcVIF,
@@ -20,7 +25,9 @@ export(qusage,
        plotDensityCurves,
        plotCIs,
        plotCIsGenes,
-       read.gmt
+       read.gmt,
+       combinePDFs,
+       plotCombinedPDF
       )
 
 exportClasses(QSarray)

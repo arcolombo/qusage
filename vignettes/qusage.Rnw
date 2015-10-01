@@ -15,7 +15,7 @@
 \SweaveOpts{concordance=TRUE}
 \title{qusage Package Vignette}
 \author{Christopher Bolen}
-\date{1 September 2013}
+\date{1 September 2012, Revised 3 October 2015}
 \maketitle
 \tableofcontents
 \clearpage
@@ -43,8 +43,13 @@ options(SweaveHooks=list(fig=function()
              par(mar=c(5.1, 4.1, 1.1, 2.1))))
 
 library(qusage)
+library(nlme)
 data("fluExample")
 data("GeneSets")
+
+i = c(which(flu.meta$Hours==0), which(flu.meta$Hours==77))
+eset = eset.full[,i]
+resp = flu.meta$Condition[i]
 @
 The simplest way to run the qusage algorithm is by using the \texttt{qusage} function. This function is a wrapper for the three primary algorithms used in the package, \texttt{makeComparison} \texttt{aggregateGeneSet}, and \texttt{calcVIF}, each of which can be run individually if you want to have greater control over the parameters used in the algorithm. A discussion of each function can be found in section~\ref{sec:algorithm}.
 
@@ -140,12 +145,15 @@ The \texttt{qs.results.msig} object now contains information for each of the gen
 @
 
 All of this data is also presented using the \texttt{qsTable} function, which returns a table ordered according to the significance of each gene set. For our data, the results are as follows:
+
 <<echo=FALSE>>=
   options(width=100)
 @
+\begin{scriptsize}
 <<qsTable>>=
   qsTable(qs.results.msig, number=10)
 @
+\end{scriptsize}
 <<echo=FALSE>>=
   options(width=70)
 @
@@ -177,6 +185,7 @@ Then, we can simply run the \texttt{qusage} function in a paired manner by addin
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Two-Way Comparisons}
+\label{sec:twoWay}
 The true power of the qusage method comes when you have results from more than one run of \texttt{qusage} that you wish to compare. If a dataset contains more than two groups, it's common to compare these groups in many different ways, and the ablility to compare the results of these comparisons with each other is extremely useful. These two-way comparisons are important when examining differences in the response characteristics of various groups (e.g. to answer the question of "does group A respond to treatment in a different way than group B?"). 
 
 To illustrate how to make these comparisons, we will once again be using the Influenza response data. Although in the previous examples we have grouped all patients together, the patients can be classified into two distinct groups based on their response to the virus. Of the 17 patients in the study, 9 of them had a symptomatic response, and 8 had an asymptomatic response. While we could compare these two groups of patients directly at the two time points, it might be more interesting to see if the response to virus over the time-course of the experiment is different between these two groups.
@@ -187,22 +196,35 @@ Before we can compare these groups, however, we will need to remake the \texttt{
   twoWay.labels = paste(resp, labels, sep=".")
   twoWay.labels
 @
-Now, we must run \texttt{qusage} twice; once for each comparison that we are interested in (note: we're also including information on the sample pairs, which was described in section~\ref{sec:pair}).
+Now, we run \texttt{qusage} twice; once for each comparison that we are interested in (note: we're also including information on the sample pairs, which was described in section~\ref{sec:pair}).
 <<twoWayRun, include=FALSE>>=
-  sx.results = qusage(eset, twoWay.labels, "sx.t1-sx.t0", MSIG.geneSets, pairVector=pairs)
-  asx.results = qusage(eset, twoWay.labels, "asx.t1-asx.t0", MSIG.geneSets, pairVector=pairs)
+  sx.results  = qusage(eset, twoWay.labels, "sx.t1-sx.t0",
+                       MSIG.geneSets, pairVector=pairs)
+  asx.results = qusage(eset, twoWay.labels, "asx.t1-asx.t0", 
+                       MSIG.geneSets, pairVector=pairs)
 @
 We could examine the information contained in these two runs using the functions described above, but what we are most interested in is whether or not there is a significant difference between the responses of these two groups. We can directly compare the results in these two groups using the \texttt{twoCurve.pVal} function. This will return a p-value for the comparison of each gene set in the two objects.
 <<twoCurvePval>>=
   p.vals = twoCurve.pVal(sx.results,asx.results)
   head(p.vals)
 @
+NOTE: In \texttt{qusage} version 2.0, we have added a streamlined version of the same methodology that also calculates the PDF of the difference between these two comparisons. In this case, a more complex comparison can be specified, indicating that the resulting PDF should be the difference between the symptomatic PDF and the asymptomatic PDF. 
+<<twoWayComplex, include=FALSE>>=
+  asx.vs.sx = qusage(eset, twoWay.labels, "(sx.t1-sx.t0) - (asx.t1-asx.t0)",
+                   MSIG.geneSets, pairVector=pairs)
+
+  p.vals = pdf.pVal(asx.vs.sx)
+  head(p.vals)
+@
+
 It turns out that gene set 125 -- the \verb@"CYTOSOLIC DNA SENSING"@ pathway -- has the most significant difference in activation. There are multiple ways we could examine this individual gene set, but perhaps the simplest way is to again use the \texttt{plotDensityCurves} function. Notice here that we are specifying which pathway to plot using the \texttt{path.index} parameter. 
 <<twoWayDensityCurvesCode, include=FALSE>>=
-  plotDensityCurves(asx.results,path.index=125,col="black",xlim=c(-0.2,0.5),main="CYTOSOLIC DNA SENSING")
-  plotDensityCurves(sx.results,path.index=125,col="red",add=T)
-  abline(v=0, lty=2)
-  legend("topleft", legend=c("asx","sx"),lty=1,col=1:2)
+  plotDensityCurves(asx.results,path.index=125,xlim=c(-0.2,0.5),
+                    col=3,main="CYTOSOLIC DNA SENSING")
+  plotDensityCurves(sx.results,path.index=125,col=2,add=T)
+  plotDensityCurves(asx.vs.sx, path.index=125,col=1,add=T, lwd=3)
+  legend("topleft", legend=c("asx","sx","asx-sx"),lty=1,col=c(2:3,1),
+         lwd=c(1,1,3))
 @
 \begin{center}
 <<twoWayDensityCurves, fig=TRUE,echo=FALSE,height=5>>=
@@ -213,7 +235,8 @@ It turns out that gene set 125 -- the \verb@"CYTOSOLIC DNA SENSING"@ pathway -- 
 
 The results here are pretty interesting, actually. What we're seeing is that, in symptomatic patients, the Cytosolic DNA Sensing pathway is extremely active, while the asymptomatic patients essentially have no activity at all. 
 
-%%%%%%%%%%%% Gene Distribution
+
+%%%%%%%%%------- Gene Distribution ------%%%%%%%%%%%%%
 \subsubsection{Individual Gene Plots}
 \label{sec:genePlot}
 Often the next question when an interesting pathway is found is what's happening with the individual genes in that pathway. Looking at the individual genes can give some idea as to how consistent the patterns of regulation in the data are, or whether the significance levels are being driven by only one or two individual genes. Because the gene set PDF in this package is actually a convolution of the PDFs of each individual gene, we can actually look at the distributions of each gene directly to understand where our variation comes from. 
@@ -300,9 +323,220 @@ The \texttt{calcVIF} algorithm contains an additional parameter, \texttt{useAllD
 
 \clearpage
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Chapter 5: QGen
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Using qusage with Generalized Linear Mixed Models}
+
+The qusage methodology was extended by Turner et al (BMC Bioinformatics 2015) to incorporate general linear mixed models available from the nlme package.  The function \texttt{qgen} is now available through the qusage package to implement the extension. The main difference lies in that the t-statistic information in qusage are based on two sample t-tests that cannot incorporate additional covariates to adjust the fold change estimates due to potential confounders that can exist within observational studies.  The qgen algorithm uses the t-statistic information derived from a linear mixed model and estimates the VIFs using the raw residuals rather than group labelings as this can yield biased VIF estimates.
+
+\subsection{The qgen function}
+Although the general structure of the \texttt{qgen} function is similar to \texttt{qusage}, there are more inputs required in order for the user to incorporate added complexity in the statistical modeling step.
+
+With default settings, \texttt{qgen} takes six inputs: \texttt{eset}, \texttt{design},\texttt{fixed}, \texttt{contrast.factor}, \texttt{contrast}, \& \texttt{\mbox{geneSets}}, however, additional inputs are often necessary to handle repeated measures data through \texttt{random} and \texttt{correlations}.
+
+\begin{enumerate}
+
+\item \texttt{eset}
+
+This variable is a matrix of log2 gene expression measurements, with rows of genes and columns of samples.  For best results, we recommend that this dataset be trimmed to remove genes with very low expression.
+
+For this example, we'll use the entire dataset from the study by Huang Y et al. (GEO ID: GSE30550), which looks at gene expression in 17 patients across a large number of time points in hours before and after exposure to the influenza virus.  In addition to time points, each patient's condition is also defined as either "asymptomatic" (asx) or "symptomatic" (sx) to the exposure.
+
+
+<<qgen_fluexpr>>=
+dim(eset.full)
+
+eset.full[1:5,1:5]
+@
+
+\item \textbf{\texttt{design}}
+
+  Rather than using a \texttt{labels} vector describing the group structure in eset, a dataframe must be provided that contains the information needed for the linear mixed model.  This can contain the fixed effect factors such as groups, continuous explanatory variables, as well as donor specific identifiers and time points necessary to model repeated measure through random effects or residual side covariance structures.  It is strongly recommended that an addition column is included corresponding to the sample names of eset.  With this information, qgen checks for any discrepancies that exist between eset and design. Any samples that do not exist in both files are removed.  If such an identifier is not specified using the \texttt{design.sampleid} option,  qgen assumes that the order in the design file corresponds to the order of the samples given in \texttt{eset}. Here are the first few rows of the design file for FluEset:
+
+
+<<qgen_design>>=
+head(flu.meta)
+@
+
+\item \textbf{\texttt{fixed}} 
+Fixed is a one sided formula specifying the fixed effects the user wishes to include in the linear model.  Typical linear models are of the two sided formula \texttt{y~X1+X2+X3}, but since the response variable is defined by the expression values of eset, only the right hand side is needed and take the general form, \texttt{~X1+X2+X3}. 
+
+For this example the primary interest is determining if there are changes over time with respect to the baseline values both for the asymptomatic and symptomatic groups.  Additional sample information such as age and gender could also be included to account for any additional source of variability or if they were confounded with primary variables of interest.   We include fixed effects for subject's condition, time, and their interaction as well as including both age and gender.
+
+<<qgen_fixedSimple>>=
+fixedeffects <- ~Hours+Condition+Condition*Hours+Age+Gender
+@
+
+
+\item \textbf{\texttt{contrast.factor}} 
+This one-sided fromula refers to one of the fixed effects components in the fixed input that tells qgen what contrast the user is interested in making a comparison.  So if the user wishes to compare symptomatic versus asymptomatic regardless of time, then the user would simply provide ~Hours.  If the user would like to compare symptomatic versus asymptomatic at hour 77 then the user would provide the interaction component ~Hours*Condition. For our example we wish to compare changes at Hour 77 versus Hour 0 among the symptomatic group only, this corresponds to:
+
+<<qgen_contrast.factor>>=
+con.fac <- ~Condition*Hours
+@
+
+
+\item \textbf{\texttt{contrast}} 
+
+This is a character string that serves the same purpose in the original \texttt{qusage} function.  It specifies which levels of contrast.factor the user wishes to compare. This is usually of the form "TrtA - TrtB".  Since our comparison involves the combination of two factor levels, the  levels just need to be concatenated in the corresponding order.  So to compare Hour 77 vs Hour 0 among the symptomatic group, the corresponding contrast can be written as:
+
+<<qgen_contrast2>>=
+contrast = "sx77 - sx0"
+@
+
+The one-sided formula in contrast.factor, and the corresponding statement in contrast are fed directly to the \texttt{makeContrasts} of the limma package to obtain the appropriate sequence of 0's and 1's for the contrast.  One caveat to the naming convention of contrast is that the names in contrast must be valid R names.  So if one were to specify the contrast.factor=~Hours*Condition and contrast= "45Symp - 0Symp", an error will return as \texttt{makeContrasts} only allows factor level names to be valid R names and cannot start with a numeric value.  
+
+
+\item \textbf{\texttt{geneSets}}
+
+This is exactly the same as for the original qusage function, either a vector describing a single gene set, or a list of vectors representing a group of gene sets.  For this example, we will continue to use the IFN-stimulated genes which looks like this:
+
+<<qgen_geneSet>>=
+ISG.geneSet[1:10]
+@
+
+Notice that both this vector and the rownames of our \texttt{eset} are using gene symbols. We could have just as easily used the original Affymetrix probe IDs or even converted everything to REFSEQ IDs. The only requirement is that the rownames of \texttt{eset} match the symbols used in \texttt{geneSets}. If they are in a different format, you will receive an error stating that all of your gene sets are of size 0.
+
+\end{enumerate}
+
+
+With these 6 parameters specified, qgen will run the analysis using ordinary least squares regression (the default unless additional options are specified). 
+
+\subsection{Qgen with random effects}
+The real power of this approach is running models that can handle the repeated measures nature of the study design.  This can be done by specifying either the \texttt{random} parameter, the \texttt{correlation} parameter, or a combination of both. Both of these options are directly fed to the linear model functions provided in the nlme package.  See \texttt{lme} and \texttt{gls} functions for additional details.
+ 
+
+In order to generate a model with random effects, an optional formula must be supplied to \texttt{random}.  For a simple repeated measures study design such as this, the form is usually ~1|g where g specifies the donor or subject ids.  To run the qgen analysis using a random effect, the following command can be called:
+
+<<qgen_randomeffect>>=
+qusage.result.random<-qgen(eset.full,flu.meta,
+                           fixed=fixedeffects,
+                           contrast.factor=con.fac, 
+                           contrast=contrast,
+                           geneSets=ISG.geneSet,
+                           random=~1|Subject,
+                           design.sampleid="SampleID")
+@
+
+The results of this analysis can then be examined using the same functions described in section~\ref{sec:simple}.
+
+<<qgen_randomResult>>=
+qsTable(qusage.result.random)
+@
+
+
+\subsection{Qgen with correlations}
+An optional nlme corStruct object to specify within group correlation structure through  the residual covariance matrix and is passed directly to the lme function within the nlme package. There are many modeling options for the user to pick from if this is desired, we strongly urge reading the documentation within the nlme package on CorStruct objects.  As an example suppose we assume that the correlations that exist over the repeated measure time points die off over time exponentially.  The corresponding model to incorporate this strategy would yield
+
+<<qgen_correlation>>=
+corStruct = corExp(value=3,~Hours.Numeric|Subject)
+corStruct
+
+qusage.result.corstruct<-qgen(eset.full,flu.meta,
+                              fixed=fixedeffects,
+                              contrast.factor=con.fac, 
+                              contrast=contrast,
+                              geneSets=ISG.geneSet,
+                              correlation=corStruct,
+                              design.sampleid="SampleID")
+@
+
+The results of both the correlation analysis and the random effects analysis can be compared directly, revealing that in both cases, there seems to be an approximately $(2^0.8=1.75)$-fold increase in the expression of ISGs at day 77 of infection. However, in this case, taking random effects into account leads to a more significant p-value, resulting from lower variance in the estimate.
+
+<<qgen_plot, include=F>>=
+  plotDensityCurves(qusage.result.random, main="ISG_geneSet", 
+                    xlim=c(0,1.2), xlab="Day 77 - Day 0", col="red")
+  plotDensityCurves(qusage.result.corstruct, col="blue",add=T)
+@
+\begin{center}
+<<plotQgen,fig=TRUE,echo=FALSE,width=5,height=3.8>>=
+<<qgen_plot>>
+@
+\end{center}
+
+\subsubsection{Additional qgen details}
+
+The computational speed of qgen depends on a couple of factors, in particular, the complexity of the linear model, the total number of genes within the gene sets, the total number of genesets, and the total number of samples.  To save computational time, qgen only performs the linear model on probes that are directly included within the gene sets as genes not included will not be used in the analysis. For the previous random effect model example, if one would to run qgen with 260 gene sets comprising of ~12,000 genes, the algorithm from start to finish will take approximately 9 minutes. 
+
+The qgen function provides a series of checks and provides various warnings and errors if any of the above mentioned options are not syntactically correct or if other obvious discrepancies exists.  It must be noted, that in some situations, some probes may have little to no variation due to processing or low intensity thresholds.  In these cases, the linear mixed model may not converge to the maximum likelihood estimates.  Currently, probes that do not convergence are removed from the analysis and a warning is presented.  qgen returns a QSarray object, therefore, any additional functions that apply to the original qusage result object such as plot and qsTable can be applied to results obtained from qgen.
+
+
+The VIF estimation techniques are implemented by the method provided by Turner et al. (BMC Bioinformatics 2015).  In certain situations when the number of random effect replicates are low, an alternative VIF estimation is preferred to maintain type-I error estimation.  qgen checks for these situations and automatically conducts the correct VIF estimation when it can.  However, sometimes the technique will not be available due to the study design or the model is more complex than the scenarios provided by the authors.  In cases such as this, a warning is produced letting the user know that the VIF estimate will use the original conditional residual approach and the type-I error rate may not be conserved. We suggest a simulation study could provide insight on whether or not there is a concern.  Additional approaches similar to that of Turner et al. (BMC Bioinformatics 2015) could be incorporated to handle these situations in future updates.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Chapter 6: Meta Analysis
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
+\section{Meta-Analysis with qusage}
+\label{sec:metaAnalysis}
+QuSAGE meta-analysis enables gene set analysis from multiple studies to be combined into a single estimation of gene set activity. This is done by using numerical convolution to combine the probability density functions (PDFs) of each data set into a single PDF. 
+
+<<LoadMetaSets, echo=F>>=
+data("fluVaccine")
+@
+
+To illustrate how QuSAGE meta-analysis works, we analyzed gene expression data from young individuals in two Influenza vaccination response data sets (GSE59635 and GSE59654). The goal of the analysis was to detect gene sets associated with successful vaccination responses. For this analysis, we will use the blood transcription modules (BTMs) described in Li et al. (Nat Immunol., 2014).
+<<BTM, eval=F, echo=F>>=
+read.gmt("BTM_for_GSEA_20131008.gmt")
+@
+
+In data set GSE59635, there are 8 young subjects (3 low-responders and 5 high-responders to the vaccine). Each subject has day 0 (pre-vaccination) and day 7 (post-vaccination) blood samples.
+<<GSE59635_desc>>=
+head(fluVaccine$phenoData[["GSE59635"]])
+@
+
+In data set GSE59654, there are 11 young subjects (7 low-responders and 4 high-responders to the vaccine). Similarly, each subject has day 0 (pre-vaccination) and day 7 (post-vaccination) blood samples.
+<<GSE59654_desc>>=
+head(fluVaccine$phenoData[["GSE59654"]])
+@
+
+Using this data, QuSAGE was first used to carry out a two-way comparison (see section~\ref{sec:twoWay} for details) between low-responders and high-responders on each data set independently. We will do this by looping over each dataset with an \texttt{lapply} statement. Note that for this analysis, we're increasing the number of points \texttt{(n.points)} above the default due to low numbers of samples:
+
+
+<<metaAnalysis_Qusage>>=
+qs.results.list = lapply(c("GSE59635", "GSE59654"), function(n){
+  eset = fluVaccine$esets[[n]]
+  phenoData = fluVaccine$phenoData[[n]]
+  labels = paste(phenoData$responder, phenoData$bloodDrawDay, 
+                 sep = ".")
+  ##run QuSAGE
+  qusage(eset, labels, "(high.d7-high.d0)-(low.d7-low.d0)", 
+            BTM.geneSets, pairVector=phenoData$subjectId, n.points=2^14)
+})
+@
+
+
+Next, QuSAGE meta-analysis was applied on the two resulting QSarray objects (one from each study). Each distrisbution is first weighted by the number of samples in each dataset, and then the two distributions are combined using numerical convolution.
+<<metaAnalysis_combinePDFs>>=
+combined = combinePDFs(qs.results.list)
+@
+
+P-values for each module can then be calculated the same way as for any other \texttt{QSarray} object.
+
+<<metaAnalysis_pval>>=
+head(pdf.pVal(combined))
+@ 
+
+It turns out that "plasma cells, immunoglobulins (M156.1)" was one of top ranked gene modules from this QuSAGE meta-analysis. This module is significantly more up-regulated (day 7 vs. day 0) in high-responders compared to low-responders to flu vaccination. To plot this result, we can use the \texttt{plotCombinedPDF} function, as shown below.
+
+<<metaAnalysis_plot, include=F>>=
+  plotCombinedPDF(combined, path.index=235)
+  legend("topleft", legend=c("GSE59635", "GSE59654", "Meta-analysis"), 
+         lty=1, col=c("red", "blue","black"))
+
+@
+\begin{center}
+<<plotMeta,fig=TRUE,echo=FALSE,width=6,height=4>>=
+<<metaAnalysis_plot>>
+@
+\end{center}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Chapter 5:  Plotting Functions
+%% Chapter 7:  Plotting Functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\clearpage
 \section{Plotting Functions}
 \label{sec:plotFns}
 
@@ -511,11 +745,18 @@ This boolean parameter is used to overlay a second plot over one that was previo
 
 
 \clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%% The QSarray Object
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{The QSarray object}
 \label{sec:QSarrayObj}
 The QSarray object is designed to hold the results of the various functions and algorithms that make up the qusage package. Exactly what information is contained in a QSarray object is dependent upon which functions have been used to create the object. A new QSarray object can also be created by calling the \texttt{QSarray()} function. A list of all possible fields and their descriptions are included below.
 \begin{itemize}
 \item \textbf{\texttt{mean, SD, dof}} - Vectors containing the means, standard deviations, and degrees of freedom for each gene as output by \texttt{makeComparison} (see section~\ref{sec:makeComparison}). Together they describe the t-distribution of each gene in the dataset.
+
+\item \textbf{\texttt{n.samples}} - The number of samples used in the comparison. If the QSarray object is the result of a call to \texttt{combinePDF}, this will be a numeric vector detailing the number of samples in each input QSarray.
 
 \item \textbf{\texttt{path.PDF}} - This is a matrix which contains the density values for the PDF of each gene set provided to \texttt{aggregateGeneSet}. The number of rows of \texttt{path.PDF} is determined by the \texttt{n.points} parameter, which by default is 4096.
 
@@ -533,9 +774,7 @@ The QSarray object is designed to hold the results of the various functions and 
 
 \item \texttt{design} - A design matrix for the linear model fitting in LIMMA. Only created if limma is used in \texttt{makeComparison} (see section~\ref{sec:makeComparison})
 
-\item \textbf{\texttt{absolute.p}}
-
-\item \textbf{\texttt{homogeneity}}
+\item \textbf{\texttt{QSlist}} - If the QSarray is the result of a call to \texttt{combinePDF} (see chapter~\ref{sec:metaAnalysis}), the QSlist will contain the list of QSarray objects used during the meta-analysis.
 
 
 \end{itemize}
