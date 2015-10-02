@@ -360,6 +360,7 @@ head(flu.meta)
 @
 
 \item \textbf{\texttt{fixed}} 
+
 Fixed is a one sided formula specifying the fixed effects the user wishes to include in the linear model.  Typical linear models are of the two sided formula \texttt{y~X1+X2+X3}, but since the response variable is defined by the expression values of eset, only the right hand side is needed and take the general form, \texttt{~X1+X2+X3}. 
 
 For this example the primary interest is determining if there are changes over time with respect to the baseline values both for the asymptomatic and symptomatic groups.  Additional sample information such as age and gender could also be included to account for any additional source of variability or if they were confounded with primary variables of interest.   We include fixed effects for subject's condition, time, and their interaction as well as including both age and gender.
@@ -370,6 +371,7 @@ fixedeffects <- ~Hours+Condition+Condition*Hours+Age+Gender
 
 
 \item \textbf{\texttt{contrast.factor}} 
+
 This one-sided fromula refers to one of the fixed effects components in the fixed input that tells qgen what contrast the user is interested in making a comparison.  So if the user wishes to compare symptomatic versus asymptomatic regardless of time, then the user would simply provide ~Hours.  If the user would like to compare symptomatic versus asymptomatic at hour 77 then the user would provide the interaction component ~Hours*Condition. For our example we wish to compare changes at Hour 77 versus Hour 0 among the symptomatic group only, this corresponds to:
 
 <<qgen_contrast.factor>>=
@@ -442,7 +444,7 @@ qusage.result.corstruct<-qgen(eset.full,flu.meta,
                               design.sampleid="SampleID")
 @
 
-The results of both the correlation analysis and the random effects analysis can be compared directly, revealing that in both cases, there seems to be an approximately $(2^0.8=1.75)$-fold increase in the expression of ISGs at day 77 of infection. However, in this case, taking random effects into account leads to a more significant p-value, resulting from lower variance in the estimate.
+The results of both the correlation analysis and the random effects analysis can be compared directly, revealing that in both cases, there seems to be an approximately $(2^{0.8}=1.75)$-fold increase in the expression of ISGs at day 77 of infection. However, in this case, taking random effects into account leads to a more significant p-value, resulting from lower variance in the estimate.
 
 <<qgen_plot, include=F>>=
   plotDensityCurves(qusage.result.random, main="ISG_geneSet", 
