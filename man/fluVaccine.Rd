@@ -15,14 +15,7 @@
   }
 }
 \usage{
-  esets     = fluVaccine$esets
-  phenoData = fluVaccine$phenoData
-  
-  eset1     = esets$GSE59635
-  eset2     = esets$GSE59654
-  
-  pheno1    = phenoData$GSE59635
-  pheno2    = phenoData$GSE59654
+  fluVaccine
 }
 \format{\code{fluVaccine} is a list.}
 \source{
