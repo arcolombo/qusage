@@ -22,7 +22,7 @@
   eset.full
   flu.meta
 }
-\format{\code{eset} is a matrix of gene expression measurements, with rows of genes and columns representing samples. \code{resp} is a character vector.}
+\format{\code{eset.full} is a matrix of gene expression measurements, with rows of genes and columns representing samples. \code{flu.meta} is a data frame, with rows of samples and columns of metadata information.}
 \source{\url{http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE30550}}
 \references{
  Huang Y et al. (PLoS Genet 2011)
