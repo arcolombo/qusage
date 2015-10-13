@@ -1,0 +1,12 @@
+bibentry("Article",
+	 title = "Quantitative set analysis for gene expression: a method to quantify gene set differential expression including gene-gene correlations.",
+	 author = c(person("Gur", "Yaari"), person("Christopher R.", "Bolen"),person("Juilee", "Thakar"),person("Steven H.", "Kleinstein")),
+	 journal = "Nucleic Acids Res.",
+	 year = 2013,
+	 
+	 textVersion = "Yaari G, Bolen CR, Thakar J, Kleinstein SH. Quantitative set analysis for gene expression: a method to quantify gene set differential expression including gene-gene correlations. Nucleic Acids Res. 2013 Aug 5.",
+         
+         mheader = "To cite QuSAGE, use the following publication:"
+        )
+
+

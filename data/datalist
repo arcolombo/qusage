@@ -1,0 +1,3 @@
+GeneSets: ISG.geneSet MSIG.geneSets BTM.geneSets
+fluExample: eset.full flu.meta
+fluVaccine: fluVaccine
